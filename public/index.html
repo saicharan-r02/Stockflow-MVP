@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>StockFlow</title>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,700;12..96,800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{--bg:#f1f3f6;--ink:#101c2e;--mut:#667389;--line:#dfe3ea;--acc:#2748d6;--acc2:#1f3bb3;--red:#c62f26;--amb:#b26a00;--grn:#17794a;--hi:#ffc83d}
+*{box-sizing:border-box}body{margin:0;font:15px/1.5 'Bricolage Grotesque',system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+#app{display:flex;min-height:100vh}
+aside{width:232px;background:var(--ink);color:#e6ebf4;padding:24px 14px;display:flex;flex-direction:column;gap:26px;position:sticky;top:0;height:100vh}
+.logo{font-size:23px;font-weight:500;padding:0 10px;letter-spacing:-.02em}.logo b{color:var(--hi);font-weight:800}
+nav{display:flex;flex-direction:column;gap:3px;flex:1}nav a{color:#aab6cb;text-decoration:none;padding:9px 12px;border-radius:8px;font-weight:500;border-left:3px solid transparent}
+nav a:hover{color:#fff}nav a.on{background:#1b2b45;color:#fff;border-left-color:var(--hi)}
+.me{font-size:13px;padding:0 10px}.me small{display:block;color:#8190a8;margin-bottom:10px;word-break:break-all}
+main{flex:1;padding:30px 38px;max-width:1240px;min-width:0}
+header{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px}h1{margin:0;font-size:30px;font-weight:800;letter-spacing:-.03em}h3{margin:0 0 12px;font-size:15px;font-weight:700}
+.grid{display:grid;gap:16px}.k4{grid-template-columns:repeat(4,1fr)}.c21{grid-template-columns:2fr 1fr}.c2{grid-template-columns:1fr 1fr}
+.card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px}
+.stat span{color:var(--mut);font-size:13px}.stat .n{font-size:32px;font-weight:800;letter-spacing:-.03em;font-variant-numeric:tabular-nums}.stat.warn{border-top:3px solid var(--hi)}
+table{width:100%;border-collapse:collapse}th{text-align:left;font-size:13px;font-weight:500;color:var(--mut);padding:8px 10px;border-bottom:1px solid var(--line)}
+td{padding:10px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}tr:last-child td{border:0}.r{text-align:right}
+button,.btn{font:inherit;font-weight:700;border:0;border-radius:9px;padding:9px 16px;background:var(--acc);color:#fff;cursor:pointer;text-decoration:none;display:inline-block}
+button:hover,.btn:hover{background:var(--acc2)}.ghost{background:transparent;border:1px solid #33496b}.ghost:hover{background:#1b2b45}
+.light{background:#fff;color:var(--ink);border:1px solid var(--line)}.light:hover{background:#f4f6f9}.danger{background:#fff;color:var(--red);border:1px solid #f1c3bf}.danger:hover{background:#fdeceb}
+input,textarea{font:inherit;width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--ink)}
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+label{display:block;font-weight:700;font-size:13px;margin-bottom:14px}label input,label textarea{margin-top:5px;font-weight:400}.f2{display:grid;grid-template-columns:1fr 1fr;gap:0 16px}
+.err{color:var(--red);font-size:14px;min-height:20px;margin-bottom:8px}
+.b{padding:2px 9px;border-radius:99px;font-size:12px;font-weight:700}.green{background:#dcf5e8;color:var(--grn)}.amber{background:#fff0c9;color:var(--amb)}.red{background:#fde3e1;color:var(--red)}
+.act{display:flex;gap:6px;justify-content:flex-end}.act button,.act .btn{padding:5px 10px;font-size:13px}.ch{position:relative;height:250px}
+.grid>*{min-width:0}.chart-empty{height:100%;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--mut);padding:20px}#tbl{overflow-x:auto}#tbl table{min-width:560px}
+.auth{width:100%;max-width:400px;margin:8vh auto;padding:28px}.muted{color:var(--mut)}
+#toast{position:fixed;bottom:24px;right:24px;background:var(--ink);color:#fff;padding:10px 18px;border-radius:10px;opacity:0;transition:opacity .2s;pointer-events:none}#toast.show{opacity:1}
+dialog{border:0;border-radius:14px;padding:22px;width:370px;max-width:92vw;box-shadow:0 20px 60px #0005}dialog::backdrop{background:#0a1220aa}
+@media(max-width:900px){#app{display:block}aside{width:auto;height:auto;position:static}main{padding:18px}.k4{grid-template-columns:1fr 1fr}.c21,.c2,.f2{grid-template-columns:1fr}}
+</style></head>
+<body><div id="app"></div><dialog id="dlg"></dialog><div id="toast"></div>
+<script>
+const $=s=>document.querySelector(s), app=$('#app');
+let user=null, charts=[];
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt=n=>n==null?'—':Number(n).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+const int=n=>Number(n).toLocaleString();
+const toast=m=>{const t=$('#toast');t.textContent=m;t.className='show';setTimeout(()=>t.className='',2200)};
+async function api(path,method='GET',body){
+  const r=await fetch('/api'+path,{method,headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined});
+  const d=await r.json().catch(()=>({}));
+  if(!r.ok){ if(r.status===401&&!path.startsWith('/auth')&&path!=='/me'){user=null;location.hash='#/login';} throw new Error(d.error||'Request failed'); }
+  return d;
+}
+const bindForm=(sel,fn)=>$(sel).addEventListener('submit',async e=>{e.preventDefault();const err=$(sel+' .err');err.textContent='';
+  try{await fn(Object.fromEntries(new FormData(e.target)))}catch(x){err.textContent=x.message}});
+const status=p=>p.quantity===0?'<span class="b red">Out of stock</span>':p.is_low?'<span class="b amber">Low stock</span>':'<span class="b green">In stock</span>';
+
+function shell(title,body,actions=''){
+  const cur=location.hash||'#/dashboard';
+  const nav=[['dashboard','Dashboard'],['products','Products'],['settings','Settings']].map(([k,l])=>`<a href="#/${k}" class="${cur.startsWith('#/'+k)?'on':''}">${l}</a>`).join('');
+  app.innerHTML=`<aside><div class="logo">Stock<b>Flow</b></div><nav>${nav}</nav><div class="me"><div>${esc(user.org)}</div><small>${esc(user.email)}</small><button id="out" class="ghost">Log out</button></div></aside><main><header><h1>${title}</h1><div>${actions}</div></header>${body}</main>`;
+  $('#out').onclick=async()=>{await api('/auth/logout','POST');user=null;location.hash='#/login'};
+}
+
+function authView(signup){
+  app.innerHTML=`<form id="f" class="auth card"><div class="logo" style="padding:0;margin-bottom:4px">Stock<b style="color:var(--acc)">Flow</b></div>
+  <p class="muted" style="margin-top:0">${signup?'Create your workspace':'Log in to your workspace'}</p>
+  ${signup?'<label>Organization name<input name="orgName" required maxlength="80" placeholder="My Test Store"></label>':''}
+  <label>Email<input name="email" type="email" required autocomplete="email"></label>
+  <label>Password<input name="password" type="password" required minlength="8" autocomplete="${signup?'new':'current'}-password"></label>
+  ${signup?'<label>Confirm password<input name="confirm" type="password" required autocomplete="new-password"></label>':''}
+  <div class="err"></div><button style="width:100%">${signup?'Sign up':'Log in'}</button>
+  <p style="text-align:center;font-size:14px;margin-bottom:0">${signup?'Have an account? <a href="#/login">Log in</a>':'New here? <a href="#/signup">Create an account</a>'}</p></form>`;
+  bindForm('#f',async d=>{ if(signup&&d.password!==d.confirm) throw new Error('Passwords do not match');
+    await api(signup?'/auth/signup':'/auth/login','POST',d); user=await api('/me'); location.hash='#/dashboard'; });
+}
+
+async function dashboard(){
+  const d=await api('/dashboard'), h=d.health;
+  const stat=(l,v,c='')=>`<div class="card stat ${c}"><span>${l}</span><div class="n">${v}</div></div>`;
+  const rows=d.low.map(p=>`<tr><td>${esc(p.name)}</td><td>${esc(p.sku)}</td><td class="r">${p.quantity}</td><td class="r">${p.threshold_used}</td><td class="r" title="Estimated from average outbound stock movements in the last 30 days (or shorter available history)">${p.days_cover == null ? 'No usage data' : `${Number(p.days_cover).toFixed(1)} days`}</td></tr>`).join('')
+    ||'<tr><td colspan="5" class="muted">Nothing is running low.</td></tr>';
+  shell('Dashboard',`${d.totalProducts?'':'<div class="card" style="margin-bottom:16px">No products yet. <a href="#/products/new">Add your first product</a> to see your stock charts.</div>'}
+  <div class="grid k4">${stat('Products',int(d.totalProducts))}${stat('Units on hand',int(d.totalUnits))}${stat('Stock value at cost',fmt(d.stockValue))}${stat('Low-stock items',int(d.lowCount),d.lowCount?'warn':'')}</div>
+  <div class="grid c21" style="margin:16px 0"><div class="card"><h3>Total units on hand, last 30 days</h3><div class="ch">${d.trend.length?'<canvas id="c1"></canvas>':'<div class="chart-empty">No stock movement history yet. Add a product or adjust stock to start the trend.</div>'}</div>${d.trend.length===1?'<p class="muted" style="font-size:12px;margin:8px 0 0">Trend builds as you add stock movements.</p>':''}</div>
+  <div class="card"><h3>Stock health</h3><div class="ch"><canvas id="c2"></canvas></div></div></div>
+  <div class="grid c2"><div class="card"><h3>Top products by quantity <span class="muted" style="font-weight:400">(amber = low stock)</span></h3><div class="ch"><canvas id="c3"></canvas></div></div>
+  <div class="card"><h3>Low-stock items</h3><table><thead><tr><th>Name</th><th>SKU</th><th class="r">On hand</th><th class="r">Threshold</th><th class="r" title="Estimated from average outbound stock movements in the last 30 days (or shorter available history)">Days of cover</th></tr></thead><tbody>${rows}</tbody></table></div></div>`,
+  '<a class="btn" href="#/products/new">Add product</a>');
+  if(!window.Chart) return;
+  Chart.defaults.font.family="'Bricolage Grotesque',system-ui,sans-serif"; Chart.defaults.color='#667389';
+  const mk=(id,c)=>charts.push(new Chart($(id),{...c,options:{responsive:true,maintainAspectRatio:false,...c.options}}));
+  if(d.trend.length) mk('#c1',{type:'line',data:{labels:d.trend.map(t=>t.date.slice(5)),datasets:[{
+    label:'Total units on hand',data:d.trend.map(t=>t.units),borderColor:'#2748d6',backgroundColor:'rgba(39,72,214,.1)',
+    fill:true,tension:.25,pointRadius:2.5,pointHoverRadius:7,pointHitRadius:12,
+    pointBackgroundColor:'#fff',pointBorderColor:'#2748d6',pointBorderWidth:2,borderWidth:2.5
+  }]},options:{
+    interaction:{mode:'index',axis:'x',intersect:false},
+    plugins:{legend:{display:false},tooltip:{enabled:true,mode:'index',intersect:false,displayColors:false,
+      callbacks:{title:items=>items.length?`Date: ${d.trend[items[0].dataIndex].date}`:'',label:ctx=>`Total units: ${int(ctx.parsed.y)}`}}},
+    hover:{mode:'index',intersect:false},
+    scales:{y:{beginAtZero:true},x:{grid:{display:false},ticks:{maxTicksLimit:8}}}
+  }});
+  mk('#c2',{type:'doughnut',data:{labels:['In stock','Low stock','Out of stock'],datasets:[{data:[h.ok,h.low,h.out],backgroundColor:['#2748d6','#f5a300','#c62f26'],borderWidth:0}]},
+    options:{cutout:'66%',plugins:{legend:{position:'bottom'}}}});
+  mk('#c3',{type:'bar',data:{labels:d.top.map(p=>p.name),datasets:[{data:d.top.map(p=>p.quantity),backgroundColor:d.top.map(p=>p.is_low?'#f5a300':'#2748d6'),borderRadius:5}]},
+    options:{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{beginAtZero:true},y:{grid:{display:false}}}}});
+}
+
+async function products(){
+  const list=await api('/products');
+  shell('Products','<div class="card"><input id="q" placeholder="Search by name or SKU" style="max-width:320px;margin-bottom:12px"><div id="tbl"></div></div>','<a class="btn" href="#/products/new">Add product</a>');
+  const draw=()=>{ const q=$('#q').value.trim().toLowerCase(); const rows=list.filter(p=>!q||p.name.toLowerCase().includes(q)||p.sku.toLowerCase().includes(q));
+    $('#tbl').innerHTML=rows.length?`<table><thead><tr><th>Name</th><th>SKU</th><th class="r">Quantity</th><th>Status</th><th class="r">Selling price</th><th></th></tr></thead><tbody>${rows.map(p=>
+      `<tr><td>${esc(p.name)}</td><td>${esc(p.sku)}</td><td class="r">${p.quantity}</td><td>${status(p)}</td><td class="r">${fmt(p.selling_price)}</td>
+      <td><div class="act"><button class="light" data-a="adj" data-id="${p.id}">Adjust stock</button><a class="btn light" href="#/products/${p.id}">Edit</a><button class="danger" data-a="del" data-id="${p.id}">Delete</button></div></td></tr>`).join('')}</tbody></table>`
+      :`<p class="muted">${list.length?'No products match your search.':'No products yet. Add your first one.'}</p>`; };
+  $('#q').oninput=draw; draw();
+  $('#tbl').onclick=async e=>{ const b=e.target.closest('button'); if(!b) return; const p=list.find(x=>x.id==b.dataset.id);
+    if(b.dataset.a==='adj') return adjust(p);
+    if(confirm(`Delete "${p.name}"? This cannot be undone.`)){ try{ await api('/products/'+p.id,'DELETE'); toast('Product deleted'); route(); }catch(x){toast(x.message)} } };
+}
+
+function adjust(p){
+  const d=$('#dlg');
+  d.innerHTML=`<form id="af"><h3>Adjust stock: ${esc(p.name)}</h3><p class="muted" style="margin-top:0">Currently ${p.quantity} on hand</p>
+  <label>Change in units (use a minus to remove)<input name="delta" type="number" step="1" required autofocus placeholder="-3 or 10"></label>
+  <label>Note (optional)<input name="note" maxlength="200"></label><div class="err"></div>
+  <div class="act"><button type="button" class="light" id="x">Cancel</button><button>Apply change</button></div></form>`;
+  d.showModal(); $('#x').onclick=()=>d.close();
+  bindForm('#af',async v=>{ await api(`/products/${p.id}/adjust`,'POST',v); d.close(); toast('Stock updated'); route(); });
+}
+
+async function form(id){
+  const p=id?await api('/products/'+id):{};
+  shell(id?'Edit product':'New product',`<form id="pf" class="card" style="max-width:720px">
+  <div class="f2"><label>Name<input name="name" required maxlength="120" value="${esc(p.name)}"></label><label>SKU<input name="sku" required maxlength="60" value="${esc(p.sku)}"></label></div>
+  <label>Description<textarea name="description" rows="2" maxlength="500">${esc(p.description)}</textarea></label>
+  <div class="f2"><label>Quantity on hand<input name="quantity" type="number" min="0" step="1" value="${p.quantity??0}"></label>
+  <label>Low-stock threshold<input name="low_stock_threshold" type="number" min="0" step="1" value="${p.low_stock_threshold??''}" placeholder="Leave empty to use the default"></label>
+  <label>Cost price<input name="cost_price" type="number" min="0" step="0.01" value="${p.cost_price??''}"></label>
+  <label>Selling price<input name="selling_price" type="number" min="0" step="0.01" value="${p.selling_price??''}"></label></div>
+  <div class="err"></div><button>Save product</button> <a class="btn light" href="#/products">Cancel</a>
+  ${p.last_updated_by?`<p class="muted" style="font-size:13px">Last updated by ${esc(p.last_updated_by)} on ${esc(p.updated_at)} UTC</p>`:''}</form>`);
+  bindForm('#pf',async v=>{ await api(id?'/products/'+id:'/products',id?'PUT':'POST',v); toast('Product saved'); location.hash='#/products'; });
+}
+
+async function settings(){
+  const s=await api('/settings');
+  shell('Settings',`<form id="sf" class="card" style="max-width:420px"><label>Default low-stock threshold<input name="default_threshold" type="number" min="0" step="1" required value="${s.default_threshold}"></label>
+  <p class="muted" style="font-size:13px;margin-top:-6px">Applies to products that have no threshold of their own.</p><div class="err"></div><button>Save settings</button></form>`);
+  bindForm('#sf',async v=>{ await api('/settings','PUT',v); toast('Settings saved'); });
+}
+
+async function route(){
+  charts.forEach(c=>c.destroy()); charts=[];
+  const h=location.hash.slice(1)||'/dashboard', pub=h==='/login'||h==='/signup';
+  if(!user&&!pub) return void(location.hash='#/login');
+  if(user&&pub) return void(location.hash='#/dashboard');
+  try{
+    if(pub) authView(h==='/signup');
+    else if(h==='/dashboard') await dashboard();
+    else if(h==='/products') await products();
+    else if(h==='/products/new') await form();
+    else if(h==='/settings') await settings();
+    else if(/^\/products\/\d+$/.test(h)) await form(h.split('/')[2]);
+    else location.hash='#/dashboard';
+  }catch(x){ if(user) shell('Something went wrong',`<div class="card">${esc(x.message)}</div>`); }
+}
+addEventListener('hashchange',route);
+(async()=>{ user=await api('/me').catch(()=>null); route(); })();
+</script></body></html>
