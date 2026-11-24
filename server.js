@@ -346,6 +346,156 @@ app.get('/api/dashboard', auth, async (req, res) => {
   });
 });
 
+// ---------- insights: per-day item movements, sales analysis, forecast ----------
+// PASTE THIS into server.js, just above the line:  app.use('/api', (req, res, next) => next(bad('Not found', 404)));
+const dayKey = t => new Date(t).toISOString().slice(0, 10);
+const utcDay = d => new Date(d + 'T00:00:00Z');
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const avg = a => a.reduce((s, x) => s + x, 0) / (a.length || 1);
+
+app.get('/api/insights', auth, async (req, res) => {
+  const oid = req.u.org_id, since = dayKey(Date.now() - 29 * 864e5);
+  const [dayItems, daySums, outs, prods, feedRows] = await Promise.all([
+    // Top 5 items per day by size of movement, with opening and closing stock rebuilt from the event log.
+    db.query(
+      `WITH daily AS (
+         SELECT product_id, TO_CHAR(created_at, 'YYYY-MM-DD') AS d, SUM(delta)::int AS change
+         FROM stock_events WHERE org_id = $1 GROUP BY 1, 2
+       ), bal AS (
+         SELECT product_id, d, change, (SUM(change) OVER (PARTITION BY product_id ORDER BY d))::int AS close FROM daily
+       ), ranked AS (
+         SELECT *, ROW_NUMBER() OVER (PARTITION BY d ORDER BY ABS(change) DESC, product_id) AS rn FROM bal WHERE d >= $2
+       )
+       SELECT r.d, COALESCE(p.name, 'Deleted product') AS name, p.sku, (r.close - r.change) AS open, r.close, r.change
+       FROM ranked r LEFT JOIN products p ON p.id = r.product_id AND p.org_id = $1
+       WHERE r.rn <= 5 ORDER BY r.d, r.rn`,
+      [oid, since]
+    ),
+    db.query(
+      `SELECT TO_CHAR(created_at, 'YYYY-MM-DD') AS d,
+         COALESCE(SUM(-delta) FILTER (WHERE delta < 0 AND COALESCE(note, '') <> 'Deleted'), 0)::int AS sold,
+         COALESCE(SUM(delta) FILTER (WHERE delta > 0), 0)::int AS received,
+         COUNT(DISTINCT product_id)::int AS items, SUM(delta)::int AS net
+       FROM stock_events WHERE org_id = $1 AND TO_CHAR(created_at, 'YYYY-MM-DD') >= $2 GROUP BY 1`,
+      [oid, since]
+    ),
+    // Outbound units per product per day (deleting a product is not a sale).
+    db.query(
+      `SELECT product_id, TO_CHAR(created_at, 'YYYY-MM-DD') AS d, SUM(-delta)::int AS units
+       FROM stock_events
+       WHERE org_id = $1 AND delta < 0 AND COALESCE(note, '') <> 'Deleted' AND created_at >= CURRENT_DATE - INTERVAL '89 days'
+       GROUP BY 1, 2`,
+      [oid]
+    ),
+    db.query('SELECT id, name, quantity, cost_price, selling_price, low_stock_threshold FROM products WHERE org_id = $1', [oid]),
+    // latest stock changes for the activity feed
+    db.query(
+      `SELECT e.id, e.delta, e.note, e.created_at, COALESCE(p.name, 'Deleted product') AS name
+       FROM stock_events e LEFT JOIN products p ON p.id = e.product_id AND p.org_id = e.org_id
+       WHERE e.org_id = $1 ORDER BY e.id DESC LIMIT 8`,
+      [oid]
+    )
+  ]);
+
+
+  // per-day table data
+  const days = {};
+  for (const r of daySums.rows) days[r.d] = { sold: r.sold, received: r.received, items: r.items, net: r.net, top: [] };
+  for (const r of dayItems.rows) {
+    (days[r.d] ??= { sold: 0, received: 0, items: 0, net: 0, top: [] })
+      .top.push({ name: r.name, sku: r.sku, open: r.open, close: r.close, change: r.change });
+  }
+
+  // sales history
+  const k90 = [...Array(90)].map((_, i) => dayKey(Date.now() - (89 - i) * 864e5));
+  const k30 = k90.slice(60), prev30 = k90.slice(30, 60);
+  const total = {}, byProduct = new Map();
+  for (const r of outs.rows) {
+    total[r.d] = (total[r.d] || 0) + r.units;
+    if (!byProduct.has(r.product_id)) byProduct.set(r.product_id, {});
+    byProduct.get(r.product_id)[r.d] = r.units;
+  }
+  const sum = (o, ks) => ks.reduce((s, k) => s + (o[k] || 0), 0);
+  const names = new Map(prods.rows.map(p => [p.id, p]));
+
+  // analysis: most sold, not selling, busiest day
+  const sellers = [...byProduct].filter(([id]) => names.has(id))
+    .map(([id, o]) => ({ name: names.get(id).name, units: sum(o, k30) }))
+    .filter(s => s.units > 0).sort((a, b) => b.units - a.units).slice(0, 3);
+  const idle = prods.rows.filter(p => p.quantity > 0 && !sum(byProduct.get(p.id) || {}, k30))
+    .sort((a, b) => b.quantity - a.quantity).slice(0, 3).map(p => ({ name: p.name, quantity: p.quantity }));
+  const spark = k30.map(d => ({ date: d, units: total[d] || 0 }));
+  const top = spark.reduce((m, s) => (s.units > m.units ? s : m), { units: 0 });
+  const analysis = { sellers, idle, spark, peak: top.units ? top : null };
+
+  // forecast: recent level + damped trend, shaped by day-of-week pattern
+  const first = k90.find(d => total[d]);
+  const history = first ? 90 - k90.indexOf(first) : 0;
+  let forecast = { ready: false, history_days: history };
+  if (history >= 14) {
+    const series = k90.slice(90 - history).map(d => total[d] || 0);
+    const level = avg(series.slice(-14)), before = series.slice(-28, -14);
+    const slope = before.length ? (level - avg(before)) / 14 : 0;
+    const wd = Array(7).fill(0), wn = Array(7).fill(0);
+    series.forEach((u, i) => { const w = utcDay(k90[90 - history + i]).getUTCDay(); wd[w] += u; wn[w]++; });
+    const mean = avg(series) || 1, useWeekdays = history >= 21;
+    const idx = wd.map((s, i) => (useWeekdays && wn[i] >= 2 ? s / wn[i] / mean : 1));
+    const fut = [...Array(30)].map((_, i) => {
+      const t = new Date(Date.now() + (i + 1) * 864e5);
+      return { t, u: Math.max(0, (level + 0.5 * slope * (i + 1)) * idx[t.getUTCDay()]) };
+    });
+    const label = t => t.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+    const weeks = [0, 1, 2, 3].map(w => ({ label: label(fut[w * 7].t), units: Math.round(fut.slice(w * 7, w * 7 + 7).reduce((s, x) => s + x.u, 0)) }));
+    const order = [...idx.keys()].sort((a, b) => idx[b] - idx[a]);
+    const perProduct = [...byProduct].filter(([id]) => names.has(id)).map(([id, o]) => {
+      const now = sum(o, k30), prev = sum(o, prev30);
+      return { name: names.get(id).name, now, next: prev ? Math.max(0, Math.round(now + (now - prev) * 0.5)) : now };
+    });
+    forecast = {
+      ready: true, history_days: history,
+      confidence: history >= 60 ? 'high' : history >= 30 ? 'medium' : 'low',
+      next30: Math.round(fut.reduce((s, x) => s + x.u, 0)), prev30: sum(total, k30), weeks,
+      best_days: useWeekdays ? order.slice(0, 2).map(i => WEEKDAYS[i]) : [],
+      slow_days: useWeekdays ? [WEEKDAYS[order[6]]] : [],
+      rising: perProduct.filter(p => p.next > p.now).sort((a, b) => (b.next - b.now) - (a.next - a.now)).slice(0, 2),
+      falling: perProduct.filter(p => p.next < p.now).sort((a, b) => (a.next - a.now) - (b.next - b.now)).slice(0, 2)
+    };
+  }
+
+  // per-product numbers for the extra widgets
+  const defaultThr = await defThr(oid), today = utcDay(k90[89]);
+  const items = prods.rows.map(p => {
+    const o = byProduct.get(p.id) || {}, sold30 = sum(o, k30), prev = sum(o, prev30);
+    const lastDay = [...k90].reverse().find(d => o[d]), price = p.selling_price, cost = p.cost_price;
+    return {
+      name: p.name, quantity: p.quantity, price, cost, sold30,
+      threshold: p.low_stock_threshold ?? defaultThr,
+      margin: price > 0 && cost != null ? Math.round((price - cost) / price * 1000) / 10 : null,
+      value: p.quantity * (cost || 0),
+      last_sold_days: lastDay ? Math.round((today - utcDay(lastDay)) / 864e5) : null,
+      next30: prev ? Math.max(0, Math.round(sold30 + (sold30 - prev) * 0.5)) : sold30
+    };
+  });
+
+  // reorder planner: cover next 30 days of expected demand plus the low-stock threshold
+  const planAll = items.map(i => {
+    const cover = i.sold30 > 0 ? i.quantity / (i.sold30 / 30) : null, order = Math.max(0, i.next30 + i.threshold - i.quantity);
+    return { name: i.name, quantity: i.quantity, cover, order, cost_total: i.cost != null ? order * i.cost : null, low: i.quantity <= i.threshold };
+  }).filter(p => p.order > 0 && (p.low || (p.cover != null && p.cover < 21)))
+    .sort((a, b) => (a.cover ?? 1e9) - (b.cover ?? 1e9) || a.quantity - b.quantity);
+
+  res.json({
+    days, analysis, forecast,
+    items: items.map(({ threshold, next30, ...rest }) => rest),
+    plan: planAll.slice(0, 6).map(({ low, ...rest }) => rest),
+    plan_count: planAll.length,
+    budget: planAll.reduce((s, p) => s + (p.cost_total || 0), 0),
+    calendar: k90.slice(6).map(d => ({ date: d, units: total[d] || 0 })),
+    feed: feedRows.rows.map(r => ({ id: r.id, name: r.name, delta: r.delta, note: r.note, at: r.created_at }))
+  });
+
+});
+
 app.use('/api', (req, res, next) => next(bad('Not found', 404)));
 app.use((e, req, res, next) => {
   if (e.type === 'entity.parse.failed' || (e instanceof SyntaxError && e.status === 400 && 'body' in e)) {
