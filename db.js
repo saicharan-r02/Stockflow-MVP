@@ -2,7 +2,6 @@ const dns = require('dns');
 const { Resolver } = dns.promises;
 const { Pool } = require('pg');
 
-// Resilient DNS resolution fallback for environments where local DNS refuses or fails on cloud DB hosts
 const publicResolver = new Resolver();
 publicResolver.setServers(['8.8.8.8', '1.1.1.1']);
 const origLookup = dns.lookup;
@@ -27,7 +26,7 @@ dns.lookup = function (hostname, options, callback) {
 };
 
 if (typeof process.loadEnvFile === 'function') {
-  try { process.loadEnvFile(); } catch (e) {}
+  try { process.loadEnvFile(); } catch (e) { }
 }
 
 const isTest = process.env.NODE_ENV === 'test';

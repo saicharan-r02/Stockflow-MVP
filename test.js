@@ -4,12 +4,10 @@ if (typeof process.loadEnvFile === 'function') {
   try { process.loadEnvFile(); } catch (e) {}
 }
 
-// Safeguard 4: If TEST_DATABASE_URL is missing, tests must stop with a clear error
 if (!process.env.TEST_DATABASE_URL) {
   throw new Error('TEST_DATABASE_URL is missing. Tests must stop with a clear error instead of falling back to DATABASE_URL.');
 }
 
-// Safeguard 6: Verify both URLs are different without printing their credentials
 if (process.env.DATABASE_URL) {
   if (process.env.TEST_DATABASE_URL === process.env.DATABASE_URL) {
     throw new Error('Safeguard violation: TEST_DATABASE_URL and DATABASE_URL are identical. Tests must use an isolated test database.');
@@ -25,7 +23,6 @@ let srv, base;
 
 before(async () => {
   await db.initSchema();
-  // Safe cleanup of test tenant data created during previous test runs on the test branch
   const client = await db.getClient();
   try {
     await client.query('BEGIN');
@@ -108,7 +105,6 @@ test('auth, CRUD, low stock, stock adjust, tenant isolation, dashboard', async (
   r = await call(A, 'GET', '/dashboard');
   assert.equal(r.d.totalProducts, 2); assert.equal(r.d.totalUnits, 23); assert.equal(r.d.trend.at(-1).units, 23);
   assert.equal(r.d.trend.length, 1, 'fresh organisation trend starts at its first event date');
-  // Mouse has its own threshold (5) so 13 units is NOT low; Cable has none, so the org default (20) applies and 10 <= 20 IS low.
   assert.equal(r.d.lowCount, 1); assert.equal(r.d.low[0].sku, 'C1'); assert.equal(r.d.low[0].threshold_used, 20);
   assert.equal(r.d.low[0].units_out_30d, 5); assert.equal(r.d.low[0].observed_days, 1); assert.equal(r.d.low[0].days_cover, 2);
   assert.equal((await call(A, 'DELETE', '/products/' + id)).s, 200);

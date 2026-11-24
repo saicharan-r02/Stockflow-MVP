@@ -11,7 +11,7 @@
 a{color:var(--acc)}#app{display:flex;min-height:100vh}.muted{color:var(--mut)}.sm{font-size:13px}
 .ic{flex:none;display:block}
 [data-theme=dark] .moon,[data-theme=light] .sun{display:none}
-/* sidebar */
+
 aside{width:236px;background:var(--side);color:#e6ebf4;padding:22px 14px;display:flex;flex-direction:column;gap:24px;position:sticky;top:0;height:100vh;overflow:hidden;border-right:1px solid #ffffff12;transition:width .38s var(--ease);animation:slide .7s var(--ease) both}
 aside.mini{width:76px}
 .logo{display:flex;align-items:center;gap:10px;font-size:22px;font-weight:500;letter-spacing:-.02em;padding:0 6px;white-space:nowrap}
@@ -26,7 +26,7 @@ nav a:hover{color:#fff;transform:translateX(4px)}nav a.on{color:#fff}nav a .ic{t
 .who small{display:block;color:#8190a8;max-width:150px;overflow:hidden;text-overflow:ellipsis}.tools{display:flex;gap:8px;flex-wrap:wrap}
 button.side{width:36px;height:36px;padding:0;display:grid;place-items:center;background:#ffffff0f;color:#c6d1e6;border:1px solid #ffffff14;box-shadow:none}
 button.side:hover{background:#ffffff1f;color:#fff;box-shadow:none}#col .ic{transition:transform .35s var(--ease)}aside.mini #col .ic{transform:rotate(180deg)}
-/* layout */
+
 main{flex:1;padding:30px 38px 50px;max-width:1280px;min-width:0}
 header{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px;gap:12px}
 h1{margin:0;font-size:30px;font-weight:800;letter-spacing:-.03em}h3{margin:0 0 12px;font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px}
@@ -65,7 +65,7 @@ h1{margin:0;font-size:30px;font-weight:800;letter-spacing:-.03em}h3{margin:0 0 1
 .tm{min-width:0;display:flex;flex-direction:column;gap:2px;align-items:flex-start}.tm b{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.tm small{color:var(--mut)}
 table{width:100%;border-collapse:collapse}th{text-align:left;font-size:13px;font-weight:500;color:var(--mut);padding:8px 10px;border-bottom:1px solid var(--line)}
 td{padding:11px 10px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}tbody tr{transition:background-color .2s}tbody tr:hover{background:var(--panel2)}tr:last-child td{border:0}.r{text-align:right}#tbl{overflow-x:auto}#tbl table{min-width:560px}
-/* round 2: squares, insights, day table */
+
 .k3{grid-template-columns:repeat(3,1fr)}.sq{aspect-ratio:1;display:flex;flex-direction:column;overflow:auto;scrollbar-width:thin;padding:20px}.sqb{flex:1;min-height:0;display:flex;flex-direction:column;gap:10px}
 .kst{flex:1;display:flex;flex-direction:column;justify-content:space-between}
 .kr{display:flex;gap:14px;align-items:center;padding:10px 8px;border-radius:12px;transition:background-color .25s}.kr+.kr{border-top:1px solid var(--line)}.kr:hover{background:var(--panel2)}
@@ -79,12 +79,12 @@ div.mini{display:grid;grid-template-columns:96px 1fr 40px;gap:8px;align-items:ce
 @keyframes growy{from{transform:scaleY(0)}}@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}}
 .pane{animation:fadeIn .35s var(--ease)}.off{display:none!important}
 .dsum{display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 10px}.dt{width:100%}.dt th{padding:6px;font-size:12px}.dt td{padding:9px 6px;font-size:13px}
-/* vertical bars */
+
 .sh{margin:30px 0 14px;font-size:20px;font-weight:800;letter-spacing:-.02em}
 .vb{display:flex;gap:10px;height:250px}.vc{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:6px}.vc b{font-size:12px;font-variant-numeric:tabular-nums}
 .vt{flex:1;width:100%;display:flex;align-items:flex-end;background:var(--panel2);border-radius:10px;overflow:hidden}.vt i{display:block;width:100%;background:var(--acc);border-radius:8px 8px 0 0;transform-origin:bottom;animation:growy .9s var(--ease) both}.vt i.lo{background:var(--amb)}
 .vc span{font-size:11px;color:var(--mut);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-/* inventory board: five compact cards in one box */
+
 .collage{padding:18px}.collage .chead{margin-bottom:14px}.collage .chead h3{margin:0}
 .cl{display:grid;grid-template-columns:repeat(12,1fr);gap:12px}
 .ct{grid-column:span 4;min-width:0;display:flex;flex-direction:column;padding:12px 14px 14px;border-radius:14px;background:var(--panel2);border:1px solid var(--line);transition:transform .3s var(--ease),border-color .3s}
@@ -102,7 +102,7 @@ div.mini{display:grid;grid-template-columns:96px 1fr 40px;gap:8px;align-items:ce
 .tb{position:absolute;display:flex;flex-direction:column;overflow:hidden;padding:4px 6px;border-radius:6px;border:1.5px solid var(--panel2);background:color-mix(in srgb,var(--acc) 38%,var(--panel));font-size:10px;line-height:1.25;animation:fadeIn .5s var(--ease) both;transition:filter .2s}
 .tb:hover{filter:brightness(1.25)}.tb.dead{background:color-mix(in srgb,var(--down) 40%,var(--panel))}
 .tb b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.tb span{color:var(--mut)}.tnote{margin:8px 0 0;font-size:11px}
-/* sales calendar */
+
 .fsum{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
 .calg{display:grid;grid-template-columns:42px repeat(7,minmax(0,1fr));gap:4px;align-items:center}
 .wh{text-align:center;font-size:11px;font-weight:700;color:var(--mut)}.wh.pk2{color:var(--acc)}
@@ -195,7 +195,7 @@ function authView(signup){
     await api(signup?'/auth/signup':'/auth/login','POST',d); user=await api('/me'); location.hash='#/dashboard'; });
 }
 
-/* ---------- dashboard ---------- */
+
 const KEYS=[['ok','In stock',UP],['low','Low stock','#f5a300'],['out','Out of stock',DN]];
 const col=i=>CD[i]&&CD[i].c<CD[i].o?DN:UP;
 const lastLine={id:'ll',afterDatasetsDraw(ch){const c=CD[CD.length-1];if(!c)return;const{ctx,chartArea:a,scales:{y}}=ch,yy=y.getPixelForValue(c.c);
@@ -245,7 +245,7 @@ async function pick(i){
   KEYS.forEach((_,j)=>{const e=$('#lg'+j);if(e)e.classList.toggle('sel',j===i)});
   plist=await api('/products').catch(()=>plist); drawDetail(); const w=$('#dwrap'); if(w&&sel===i)w.classList.add('open');
 }
-/* ---------- insights: day table, sales analysis, forecast ---------- */
+
 let ins=null, dayIdx=null, dayPin=null;
 const short=s=>s.length>16?s.slice(0,15)+'…':s, sgn=n=>(n>0?'+':'')+int(n);
 const nice=d=>new Date(d+'T00:00:00Z').toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric',timeZone:'UTC'});
@@ -291,7 +291,7 @@ function paint(d){
   if(dayIdx!=null)showDay(dayIdx);
   if(sel!=null)api('/products').then(p=>{plist=p;drawDetail()}).catch(()=>{});
 }
-/* ---------- inventory board widgets ---------- */
+
 let fc=null;
 const NEEDS2='<p class="muted sm">Install the latest insights-route.js in server.js to unlock this card.</p>';
 const DOW=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'], REST='#22d3ee', SOLD='#a78bfa', NET='#f5a300';
@@ -327,15 +327,12 @@ function widgets(){
   const k=JSON.stringify(ins&&ins.items&&[ins.items,ins.days,ins.calendar,ins.analysis.spark])||'none'; if(k===sig.w)return; sig.w=k;
   if(!ins||!ins.items){$('#tmap').innerHTML=NEEDS2;$('#cal').innerHTML=NEEDS2;return}
   const it=ins.items;
-  // sold vs restocked
   const ds=ins.analysis.spark.map(s=>s.date);
   if(fc){const r=ds.map(d=>(ins.days[d]||{}).received||0),s=ds.map(d=>(ins.days[d]||{}).sold||0);fc.data.labels=ds.map(d=>d.slice(5));fc.data.datasets[0].data=r;fc.data.datasets[1].data=s.map(x=>-x);fc.data.datasets[2].data=r.map((x,i)=>x-s[i]);fc.update()}
-  // treemap
   const tv=it.filter(p=>p.value>0).sort((a,b)=>b.value-a.value), tt=tv.slice(0,8).map(p=>({n:p.name,v:p.value,dead:!p.sold30})), rest=tv.slice(8), out=[];
   if(rest.length)tt.push({n:`${rest.length} others`,v:rest.reduce((s,p)=>s+p.value,0),dead:rest.every(p=>!p.sold30)});
   tm(tt,0,0,100,56,out);
   $('#tmap').innerHTML=out.length?`<div class="tmw">${out.map((b,i)=>`<div class="tb ${b.dead?'dead':''}" title="${esc(b.n)}: ${fmt(b.v)}${b.dead?' (no sales in 30 days)':''}" style="left:${b.x}%;top:${b.y/.56}%;width:${b.w}%;height:${b.h/.56}%;animation-delay:${i*50}ms"><b>${esc(b.n)}</b><span>${cmp(Math.round(b.v))}</span></div>`).join('')}</div><p class="muted tnote">Size = stock value at cost. Red = no sale in 30 days.</p>`:'<p class="muted sm">No stock value yet. Add cost prices and quantities.</p>';
-  // calendar
   paintCal();
 }
 const load=()=>Promise.all([api('/dashboard'),api('/insights').catch(()=>ins)]);
@@ -386,7 +383,7 @@ async function dashboard(){
   timer=setInterval(async()=>{if(document.hidden)return;try{const[d,i]=await load();ins=i;paint(d)}catch(e){}},5000);
 }
 
-/* ---------- products / settings ---------- */
+
 async function products(){
   const list=await api('/products'); let first=true;
   shell('Products','<div class="card rise"><input id="q" placeholder="Search by name or SKU" style="max-width:320px;margin-bottom:12px"><div id="tbl"></div></div>',`<a class="btn" href="#/products/new">${ic('plus',18)}Add product</a>`);

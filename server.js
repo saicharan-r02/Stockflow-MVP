@@ -6,8 +6,6 @@ if (prod && !process.env.JWT_SECRET) throw new Error('Set JWT_SECRET in producti
 const app = express();
 app.disable('x-powered-by'); app.set('trust proxy', 1);
 app.use(express.json({ limit: '50kb' }));
-// Express 5 may leave req.body undefined when no JSON body was sent.
-// Normalise it so validation returns a client error rather than a TypeError/500.
 app.use((req, res, next) => { req.body ??= {}; next(); });
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -17,8 +15,6 @@ const hits = new Map();
 const MAX_RATE_LIMIT_IPS = 5000;
 const limit = (req, res, next) => {
   const now = Date.now(), ip = req.ip;
-  // Bound the map even if clients rotate source IPs; prune expired buckets
-  // before admitting a new key once the cap is reached.
   if (!hits.has(ip) && hits.size >= MAX_RATE_LIMIT_IPS) {
     for (const [key, timestamps] of hits) {
       const recent = timestamps.filter(time => now - time < 6e4);
@@ -33,7 +29,6 @@ const limit = (req, res, next) => {
   next(attempts.length > 20 ? bad('Too many attempts. Try again in a minute.', 429) : undefined);
 };
 
-// ---------- auth ----------
 const setCookie = (res, u) => res.cookie('t', jwt.sign({ uid: u.id }, SECRET, { expiresIn: '7d' }), { httpOnly: true, sameSite: 'lax', secure: prod, maxAge: 7 * 864e5 });
 const auth = async (req, res, next) => {
   const m = (req.headers.cookie || '').match(/(?:^|; )t=([^;]+)/);
@@ -45,7 +40,7 @@ const auth = async (req, res, next) => {
       [payload.uid]
     );
     u = rows[0];
-  } catch {}
+  } catch { }
   if (!u) return next(bad('Not authenticated', 401));
   req.u = u;
   next();
@@ -100,7 +95,6 @@ app.post('/api/auth/logout', (req, res) => {
 
 app.get('/api/me', auth, (req, res) => res.json({ email: req.u.email, org: req.u.org }));
 
-// ---------- helpers ----------
 const COLS = 'id,name,sku,description,quantity,cost_price,selling_price,low_stock_threshold,last_updated_by,created_at,updated_at';
 
 const defThr = async (oid, client) => {
@@ -153,7 +147,6 @@ const clean = b => {
   };
 };
 
-// ---------- products (every query is scoped by org_id) ----------
 app.get('/api/products', auth, async (req, res) => {
   const d = await defThr(req.u.org_id);
   const { rows } = await db.query(
@@ -201,8 +194,6 @@ app.put('/api/products/:id', auth, async (req, res) => {
     await client.query('BEGIN');
     const old = await get(oid, req.params.id, client);
     if (!old) throw bad('Product not found', 404);
-    // PUT accepts partial fields for compatibility with API clients; omitted
-    // values remain unchanged instead of being reset to defaults.
     const p = clean({ ...old, ...req.body });
     await client.query(
       `UPDATE products SET name = $1, sku = $2, description = $3, quantity = $4, cost_price = $5,
@@ -268,7 +259,6 @@ app.delete('/api/products/:id', auth, async (req, res) => {
   res.json({ ok: true });
 });
 
-// ---------- settings ----------
 app.get('/api/settings', auth, async (req, res) => {
   const d = await defThr(req.u.org_id);
   res.json({ default_threshold: d });
@@ -281,7 +271,6 @@ app.put('/api/settings', auth, async (req, res) => {
   res.json({ default_threshold: n });
 });
 
-// ---------- dashboard ----------
 app.get('/api/dashboard', auth, async (req, res) => {
   const oid = req.u.org_id;
   const d = await defThr(oid);
@@ -302,8 +291,6 @@ app.get('/api/dashboard', auth, async (req, res) => {
   const by = Object.fromEntries(rows.map(r => [r.d, r.s]));
   const days = [...Array(30)].map((_, i) => new Date(Date.now() - (29 - i) * 864e5).toISOString().slice(0, 10));
 
-  // Hide the misleading pre-history zero run for newly-created organisations.
-  // When history predates the window, carry its closing balance into day one.
   const firstEventDate = rows.length ? rows[0].d : null;
   const chartStart = firstEventDate && firstEventDate > days[0] ? firstEventDate : days[0];
   let run = rows.filter(r => r.d < chartStart).reduce((sum, r) => sum + r.s, 0);
@@ -311,8 +298,6 @@ app.get('/api/dashboard', auth, async (req, res) => {
     ? days.filter(date => date >= chartStart).map(date => ({ date, units: (run += by[date] || 0) }))
     : [];
 
-  // Estimate days of cover from the last 30 calendar days of outbound stock
-  // movements. It is deliberately null when there is no recorded outflow.
   const usageRes = await db.query(
     `SELECT product_id,
        SUM(CASE WHEN delta < 0 THEN -delta ELSE 0 END)::int AS units_out,
@@ -327,7 +312,6 @@ app.get('/api/dashboard', auth, async (req, res) => {
   const lowWithCover = low.map(product => {
     const usage = usageByProduct.get(product.id);
     const unitsOut = usage?.units_out || 0;
-    // Use the days actually observed for new products, capped at the 30-day window.
     const observedDays = usage ? Math.max(1, Math.min(30, usage.observed_days || 1)) : 0;
     const averageDailyOutflow = unitsOut > 0 ? unitsOut / observedDays : 0;
     const daysCover = averageDailyOutflow > 0 ? product.quantity / averageDailyOutflow : null;
@@ -346,8 +330,6 @@ app.get('/api/dashboard', auth, async (req, res) => {
   });
 });
 
-// ---------- insights: per-day item movements, sales analysis, forecast ----------
-// PASTE THIS into server.js, just above the line:  app.use('/api', (req, res, next) => next(bad('Not found', 404)));
 const dayKey = t => new Date(t).toISOString().slice(0, 10);
 const utcDay = d => new Date(d + 'T00:00:00Z');
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -356,7 +338,6 @@ const avg = a => a.reduce((s, x) => s + x, 0) / (a.length || 1);
 app.get('/api/insights', auth, async (req, res) => {
   const oid = req.u.org_id, since = dayKey(Date.now() - 29 * 864e5);
   const [dayItems, daySums, outs, prods, feedRows] = await Promise.all([
-    // Top 5 items per day by size of movement, with opening and closing stock rebuilt from the event log.
     db.query(
       `WITH daily AS (
          SELECT product_id, TO_CHAR(created_at, 'YYYY-MM-DD') AS d, SUM(delta)::int AS change
@@ -379,7 +360,6 @@ app.get('/api/insights', auth, async (req, res) => {
        FROM stock_events WHERE org_id = $1 AND TO_CHAR(created_at, 'YYYY-MM-DD') >= $2 GROUP BY 1`,
       [oid, since]
     ),
-    // Outbound units per product per day (deleting a product is not a sale).
     db.query(
       `SELECT product_id, TO_CHAR(created_at, 'YYYY-MM-DD') AS d, SUM(-delta)::int AS units
        FROM stock_events
@@ -388,7 +368,6 @@ app.get('/api/insights', auth, async (req, res) => {
       [oid]
     ),
     db.query('SELECT id, name, quantity, cost_price, selling_price, low_stock_threshold FROM products WHERE org_id = $1', [oid]),
-    // latest stock changes for the activity feed
     db.query(
       `SELECT e.id, e.delta, e.note, e.created_at, COALESCE(p.name, 'Deleted product') AS name
        FROM stock_events e LEFT JOIN products p ON p.id = e.product_id AND p.org_id = e.org_id
@@ -398,7 +377,6 @@ app.get('/api/insights', auth, async (req, res) => {
   ]);
 
 
-  // per-day table data
   const days = {};
   for (const r of daySums.rows) days[r.d] = { sold: r.sold, received: r.received, items: r.items, net: r.net, top: [] };
   for (const r of dayItems.rows) {
@@ -406,7 +384,6 @@ app.get('/api/insights', auth, async (req, res) => {
       .top.push({ name: r.name, sku: r.sku, open: r.open, close: r.close, change: r.change });
   }
 
-  // sales history
   const k90 = [...Array(90)].map((_, i) => dayKey(Date.now() - (89 - i) * 864e5));
   const k30 = k90.slice(60), prev30 = k90.slice(30, 60);
   const total = {}, byProduct = new Map();
@@ -418,7 +395,6 @@ app.get('/api/insights', auth, async (req, res) => {
   const sum = (o, ks) => ks.reduce((s, k) => s + (o[k] || 0), 0);
   const names = new Map(prods.rows.map(p => [p.id, p]));
 
-  // analysis: most sold, not selling, busiest day
   const sellers = [...byProduct].filter(([id]) => names.has(id))
     .map(([id, o]) => ({ name: names.get(id).name, units: sum(o, k30) }))
     .filter(s => s.units > 0).sort((a, b) => b.units - a.units).slice(0, 3);
@@ -428,7 +404,6 @@ app.get('/api/insights', auth, async (req, res) => {
   const top = spark.reduce((m, s) => (s.units > m.units ? s : m), { units: 0 });
   const analysis = { sellers, idle, spark, peak: top.units ? top : null };
 
-  // forecast: recent level + damped trend, shaped by day-of-week pattern
   const first = k90.find(d => total[d]);
   const history = first ? 90 - k90.indexOf(first) : 0;
   let forecast = { ready: false, history_days: history };
@@ -462,7 +437,6 @@ app.get('/api/insights', auth, async (req, res) => {
     };
   }
 
-  // per-product numbers for the extra widgets
   const defaultThr = await defThr(oid), today = utcDay(k90[89]);
   const items = prods.rows.map(p => {
     const o = byProduct.get(p.id) || {}, sold30 = sum(o, k30), prev = sum(o, prev30);
@@ -477,7 +451,6 @@ app.get('/api/insights', auth, async (req, res) => {
     };
   });
 
-  // reorder planner: cover next 30 days of expected demand plus the low-stock threshold
   const planAll = items.map(i => {
     const cover = i.sold30 > 0 ? i.quantity / (i.sold30 / 30) : null, order = Math.max(0, i.next30 + i.threshold - i.quantity);
     return { name: i.name, quantity: i.quantity, cover, order, cost_total: i.cost != null ? order * i.cost : null, low: i.quantity <= i.threshold };

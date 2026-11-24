@@ -1,8 +1,32 @@
 # StockFlow MVP
 
-Multi-tenant inventory app: signup/login, organisation-scoped product CRUD, stock adjustments, low-stock settings and a dashboard with inventory charts.
+> **Live Deployment:** [https://stockflow-mvp-yhr8.onrender.com](https://stockflow-mvp-yhr8.onrender.com)  
+> *Hosted on Render with Neon Serverless PostgreSQL.*
 
-**Stack:** Node.js 22+, Express, Neon PostgreSQL (`pg`), JWT in an httpOnly cookie, bcrypt, vanilla JavaScript SPA and Chart.js.
+Multi-tenant inventory management application featuring secure authentication, organisation-scoped product CRUD, transactional stock adjustments, low-stock alerts, and an analytics dashboard with interactive charts.
+
+**Stack:** Node.js 22+, Express 5, Neon PostgreSQL (`pg`), JWT in an `httpOnly` cookie, bcryptjs, Helmet security headers, vanilla JavaScript SPA, and Chart.js.
+
+---
+
+## ⚡ Live Application & Demo Accounts
+
+### Live URL
+- **Production URL:** [https://stockflow-mvp-yhr8.onrender.com](https://stockflow-mvp-yhr8.onrender.com)
+
+> **Render Cold-Start Notice:** The application is hosted on Render's free tier. If the service has been inactive for 15+ minutes, Render spins down the compute container. The initial request may take **30–50 seconds** to wake up. Once warmed up, response times are immediate.  
+> **Neon PostgreSQL Persistence:** The database runs on Neon Serverless PostgreSQL with persistent storage. All organisation accounts, product data, and stock histories are completely preserved across cold starts and deployments.
+
+### Demo Credentials
+
+| Organisation | Email | Password | Sample Data Included |
+|---|---|---|---|
+| **Demo Store** | `demo@stockflow.app` | `demo12345` | 12 products, 30-day stock event history |
+| **NovaTech Electronics** | `novatech@stockflow.app` | `novatech12345` | 15 products, 518 units, deterministic stock movements |
+
+*Tip: Open two different browser profiles or one normal window and one incognito window to see multi-tenant isolation in real time.*
+
+---
 
 ## Environment Configuration
 
@@ -67,13 +91,16 @@ Database tables and indexes are initialized automatically on the first server bo
 
 - Product, settings and dashboard queries are scoped by the authenticated user's `org_id`.
 - SKUs are upper-cased and unique within each organisation.
-- Stock adjustments use PostgreSQL transactions (`BEGIN`, `COMMIT`, `ROLLBACK`) with a checked-out pool client.
-- Inventory quantities cannot drop below zero.
+- Stock adjustments use PostgreSQL transactions (`BEGIN`, `COMMIT`, `ROLLBACK`) with a checked-out pool client and row-level locking (`SELECT ... FOR UPDATE`) to prevent race conditions during concurrent requests.
+- Inventory quantities cannot drop below zero and enforce positive numeric bounds.
+- Product ID parameters are strictly validated (`parseId`) to reject non-integer IDs before reaching PostgreSQL.
 - Low stock is evaluated as `quantity <= threshold` (product-specific threshold, otherwise organisation default; default is `5`).
 - `stock_events` stores quantity deltas for the 30-day stock trend; it is not a full audit log.
 - The trend begins at the first recorded movement in the displayed period. Hovering the line selects the nearest date and shows the full date and total units.
 - Days of cover is an estimate: current quantity divided by average daily outbound units over the last 30 calendar days (or the shorter recorded history for a new product). It displays “No usage data” when there are no recorded outbound movements.
 - Dashboard charts: total units over time (line), stock health (doughnut), and top products by quantity (bar).
+- Security headers are enforced via `helmet` (`X-Content-Type-Options: nosniff`, `X-Frame-Options: SAMEORIGIN`) with a Content Security Policy (CSP) supporting Google Fonts, Chart.js from cdnjs, and vanilla SPA scripts.
+- Authentication utilizes non-blocking asynchronous bcryptjs hashing (`await bcrypt.hash` and `await bcrypt.compare`).
 
 ## Out of scope (per MVP PRD)
 

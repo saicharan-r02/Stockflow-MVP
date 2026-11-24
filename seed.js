@@ -1,5 +1,3 @@
-// npm run seed
-// Creates two independent demo organisations. Safe to run more than once.
 const bcrypt = require('bcryptjs');
 const db = require('./db');
 
@@ -83,10 +81,6 @@ async function seedShowcaseDemo() {
     return;
   }
 
-  // Each product is described as:
-  // [name, SKU, final quantity, opening quantity, cost, selling price,
-  //  low-stock threshold, description, [[delta, daysAgo, note], ...]]
-  // Opening quantity plus all dated deltas must equal final quantity.
   const products = [
     ['Wireless Mouse', 'WM-220', 46, 70, 9.50, 22.99, 10,
       'Ergonomic 2.4 GHz wireless mouse', [[-15, 27, 'Customer sales'], [25, 23, 'Supplier restock'], [-20, 6, 'Customer sales'], [-14, 2, 'Customer sales']]],
