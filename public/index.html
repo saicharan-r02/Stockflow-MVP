@@ -1,45 +1,152 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>StockFlow</title>
+<html lang="en" data-theme="dark"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>StockFlow</title>
+<script>try{document.documentElement.dataset.theme=localStorage.getItem('sf-theme')||'dark'}catch(e){}</script>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,700;12..96,800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
-:root{--bg:#f1f3f6;--ink:#101c2e;--mut:#667389;--line:#dfe3ea;--acc:#2748d6;--acc2:#1f3bb3;--red:#c62f26;--amb:#b26a00;--grn:#17794a;--hi:#ffc83d}
-*{box-sizing:border-box}body{margin:0;font:15px/1.5 'Bricolage Grotesque',system-ui,sans-serif;background:var(--bg);color:var(--ink)}
-#app{display:flex;min-height:100vh}
-aside{width:232px;background:var(--ink);color:#e6ebf4;padding:24px 14px;display:flex;flex-direction:column;gap:26px;position:sticky;top:0;height:100vh}
-.logo{font-size:23px;font-weight:500;padding:0 10px;letter-spacing:-.02em}.logo b{color:var(--hi);font-weight:800}
-nav{display:flex;flex-direction:column;gap:3px;flex:1}nav a{color:#aab6cb;text-decoration:none;padding:9px 12px;border-radius:8px;font-weight:500;border-left:3px solid transparent}
-nav a:hover{color:#fff}nav a.on{background:#1b2b45;color:#fff;border-left-color:var(--hi)}
-.me{font-size:13px;padding:0 10px}.me small{display:block;color:#8190a8;margin-bottom:10px;word-break:break-all}
-main{flex:1;padding:30px 38px;max-width:1240px;min-width:0}
-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px}h1{margin:0;font-size:30px;font-weight:800;letter-spacing:-.03em}h3{margin:0 0 12px;font-size:15px;font-weight:700}
-.grid{display:grid;gap:16px}.k4{grid-template-columns:repeat(4,1fr)}.c21{grid-template-columns:2fr 1fr}.c2{grid-template-columns:1fr 1fr}
-.card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px}
-.stat span{color:var(--mut);font-size:13px}.stat .n{font-size:32px;font-weight:800;letter-spacing:-.03em;font-variant-numeric:tabular-nums}.stat.warn{border-top:3px solid var(--hi)}
+:root{--up:#22c55e;--down:#ef4444;--amb:#f5a300;--ease:cubic-bezier(.22,.8,.24,1)}
+[data-theme=dark]{color-scheme:dark;--bg:#080d1a;--panel:#101829;--panel2:#16203a;--ink:#e9eef9;--mut:#8896b3;--line:#1e2a47;--acc:#6482ff;--glow:#6482ff30;--side:#0b1222}
+[data-theme=light]{color-scheme:light;--bg:#eef1f6;--panel:#fff;--panel2:#f3f5f9;--ink:#101c2e;--mut:#66748b;--line:#e0e5ee;--acc:#2748d6;--glow:#2748d625;--side:#101c2e}
+*{box-sizing:border-box}body{margin:0;font:15px/1.5 'Bricolage Grotesque',system-ui,sans-serif;background:radial-gradient(900px 500px at 85% -10%,var(--glow),transparent) fixed,var(--bg);color:var(--ink);transition:background-color .4s,color .4s}
+a{color:var(--acc)}#app{display:flex;min-height:100vh}.muted{color:var(--mut)}.sm{font-size:13px}
+.ic{flex:none;display:block}
+[data-theme=dark] .moon,[data-theme=light] .sun{display:none}
+/* sidebar */
+aside{width:236px;background:var(--side);color:#e6ebf4;padding:22px 14px;display:flex;flex-direction:column;gap:24px;position:sticky;top:0;height:100vh;overflow:hidden;border-right:1px solid #ffffff12;transition:width .38s var(--ease);animation:slide .7s var(--ease) both}
+aside.mini{width:76px}
+.logo{display:flex;align-items:center;gap:10px;font-size:22px;font-weight:500;letter-spacing:-.02em;padding:0 6px;white-space:nowrap}
+.logo i{width:34px;height:34px;flex:none;border-radius:10px;display:grid;place-items:center;background:var(--acc);color:#fff;box-shadow:0 6px 18px var(--glow)}.logo b{color:#ffc83d;font-weight:800}
+nav{position:relative;display:flex;flex-direction:column;gap:4px;flex:1}
+nav a{position:relative;z-index:1;display:flex;align-items:center;gap:12px;color:#a9b6cc;text-decoration:none;padding:11px 14px;border-radius:10px;font-weight:500;white-space:nowrap;transition:color .25s,transform .3s var(--ease)}
+nav a:hover{color:#fff;transform:translateX(4px)}nav a.on{color:#fff}nav a .ic{transition:transform .3s var(--ease)}nav a:hover .ic{transform:scale(1.15) rotate(-6deg)}
+#pill{position:absolute;left:0;right:0;top:0;border-radius:10px;background:#ffffff12;border-left:3px solid #ffc83d;transition:transform .45s var(--ease),height .3s}
+.lbl{transition:opacity .2s}aside.mini .lbl{opacity:0}
+.me{font-size:13px;display:flex;flex-direction:column;gap:12px}.who{display:flex;align-items:center;gap:10px;white-space:nowrap;overflow:hidden}
+.av{width:36px;height:36px;border-radius:50%;flex:none;display:grid;place-items:center;background:#ffc83d;color:#101c2e;font-weight:800}
+.who small{display:block;color:#8190a8;max-width:150px;overflow:hidden;text-overflow:ellipsis}.tools{display:flex;gap:8px;flex-wrap:wrap}
+button.side{width:36px;height:36px;padding:0;display:grid;place-items:center;background:#ffffff0f;color:#c6d1e6;border:1px solid #ffffff14;box-shadow:none}
+button.side:hover{background:#ffffff1f;color:#fff;box-shadow:none}#col .ic{transition:transform .35s var(--ease)}aside.mini #col .ic{transform:rotate(180deg)}
+/* layout */
+main{flex:1;padding:30px 38px 50px;max-width:1280px;min-width:0}
+header{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px;gap:12px}
+h1{margin:0;font-size:30px;font-weight:800;letter-spacing:-.03em}h3{margin:0 0 12px;font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px}
+.grid{display:grid;gap:16px}.k4{grid-template-columns:repeat(4,1fr)}.c21{grid-template-columns:2fr 1fr;margin-top:16px}.c2{grid-template-columns:1fr 1fr}.grid>*{min-width:0}.mt{margin-top:16px}
+.rise{animation:up .6s var(--ease) both;animation-delay:calc(var(--i,0)*80ms)}
+@keyframes up{from{opacity:0;transform:translateY(16px)}}@keyframes slide{from{opacity:0;transform:translateX(-24px)}}
+@keyframes pulse{from{box-shadow:0 0 0 0 color-mix(in srgb,currentColor 55%,transparent)}to{box-shadow:0 0 0 12px transparent}}
+@keyframes spin{to{transform:rotate(360deg)}}@keyframes grow{from{transform:scaleX(0)}}@keyframes ring{from{stroke-dashoffset:var(--c)}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px;transition:transform .3s var(--ease),border-color .3s,box-shadow .3s,background-color .4s}
+.hov:hover{transform:translateY(-4px);border-color:var(--acc);box-shadow:0 14px 34px -16px var(--acc)}
+.stat{display:flex;gap:14px;align-items:center}.stat .ico{width:48px;height:48px;border-radius:14px;display:grid;place-items:center;flex:none;color:var(--c);background:color-mix(in srgb,var(--c) 16%,transparent)}
+.stat span{color:var(--mut);font-size:13px}.stat .n{font-size:30px;font-weight:800;letter-spacing:-.03em;line-height:1.15;font-variant-numeric:tabular-nums}
+.stat.warn{border-color:var(--amb)}.stat.warn .ico{animation:pulse 1.8s infinite}
+.live{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--up)}.live i{width:8px;height:8px;border-radius:50%;background:currentColor;animation:pulse 1.5s infinite}
+.chead{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}.big{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}.big b{font-size:32px;font-weight:800;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.chip{display:inline-block;padding:2px 9px;border-radius:99px;font-size:12px;font-weight:700;background:var(--panel2);color:var(--mut)}
+.chip.up,.green{background:color-mix(in srgb,var(--up) 16%,transparent);color:var(--up)}.chip.down,.red{background:color-mix(in srgb,var(--down) 16%,transparent);color:var(--down)}.chip.amb,.amber{background:color-mix(in srgb,var(--amb) 18%,transparent);color:var(--amb)}
+.b{padding:2px 9px;border-radius:99px;font-size:12px;font-weight:700}
+.ch{position:relative;height:250px}.ch.tall{height:280px}.ch.pie{height:220px}
+.chart-empty{display:flex;flex-direction:column;gap:8px;align-items:center;justify-content:center;text-align:center;color:var(--mut);padding:20px}.ch .chart-empty{position:absolute;inset:0}.chart-empty[hidden]{display:none}.chart-empty.ok{color:var(--up)}
+.orb{position:absolute;inset:8px;border:1px dashed var(--line);border-radius:50%;animation:spin 28s linear infinite;pointer-events:none}
+.ctr{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none}.ctr b{font-size:32px;font-weight:800;line-height:1.1}.ctr span{font-size:12px;color:var(--mut)}
+.leg{display:flex;gap:8px;margin-top:12px}.lg{flex:1;min-width:0;padding:8px 10px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);cursor:pointer;font-size:12px;transition:transform .25s var(--ease),border-color .25s}
+.lg:hover,.lg.sel{border-color:var(--c);transform:translateY(-3px)}.lg b{font-size:18px}.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px}
+.reveal{display:grid;grid-template-rows:0fr;transition:grid-template-rows .5s var(--ease),margin .5s var(--ease)}.reveal.open{grid-template-rows:1fr;margin-top:16px}.reveal>div{overflow:hidden;min-height:0}
+.dh{display:flex;justify-content:space-between;align-items:center}button.x{padding:6px}
+.rd{list-style:none;margin:0;padding:0}.rd li{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);animation:up .4s var(--ease) both}.rd li:last-child{border:0}.rd li>:first-child{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lb{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:14px}.lb li{display:flex;gap:12px;align-items:center}
+.lb em{width:28px;height:28px;border-radius:8px;flex:none;display:grid;place-items:center;font-style:normal;font-weight:800;font-size:13px;background:var(--panel2);color:var(--mut)}.lb li:first-child em{background:#ffc83d;color:#101c2e}
+.lbm{flex:1;min-width:0}.lbt{display:flex;justify-content:space-between;gap:10px;font-weight:500;margin-bottom:5px}.lbt span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.lbt b{font-variant-numeric:tabular-nums}
+.trk{height:9px;border-radius:9px;background:var(--panel2);overflow:hidden}.trk i{display:block;height:100%;border-radius:9px;background:var(--acc);transform-origin:left;animation:grow 1s var(--ease) both}.trk i.lo{background:var(--amb)}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;max-height:330px;overflow:auto;padding:2px}
+.tile{display:flex;gap:12px;align-items:center;padding:12px;border-radius:14px;background:var(--panel2);border:1px solid var(--line);animation:up .5s var(--ease) both;animation-delay:calc(var(--i)*70ms);transition:transform .3s var(--ease),border-color .3s}
+.tile:hover{transform:translateY(-3px);border-color:var(--amb)}.tile.crit{border-color:color-mix(in srgb,var(--down) 55%,transparent)}.tile.crit:hover{border-color:var(--down)}
+.rt{fill:none;stroke:var(--line);stroke-width:6}.rf{fill:none;stroke:var(--amb);stroke-width:6;stroke-linecap:round;animation:ring 1.2s var(--ease) both}.tile text{fill:var(--ink);font-weight:800;font-size:16px}
+.tm{min-width:0;display:flex;flex-direction:column;gap:2px;align-items:flex-start}.tm b{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.tm small{color:var(--mut)}
 table{width:100%;border-collapse:collapse}th{text-align:left;font-size:13px;font-weight:500;color:var(--mut);padding:8px 10px;border-bottom:1px solid var(--line)}
-td{padding:10px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}tr:last-child td{border:0}.r{text-align:right}
-button,.btn{font:inherit;font-weight:700;border:0;border-radius:9px;padding:9px 16px;background:var(--acc);color:#fff;cursor:pointer;text-decoration:none;display:inline-block}
-button:hover,.btn:hover{background:var(--acc2)}.ghost{background:transparent;border:1px solid #33496b}.ghost:hover{background:#1b2b45}
-.light{background:#fff;color:var(--ink);border:1px solid var(--line)}.light:hover{background:#f4f6f9}.danger{background:#fff;color:var(--red);border:1px solid #f1c3bf}.danger:hover{background:#fdeceb}
-input,textarea{font:inherit;width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--ink)}
-:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+td{padding:11px 10px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}tbody tr{transition:background-color .2s}tbody tr:hover{background:var(--panel2)}tr:last-child td{border:0}.r{text-align:right}#tbl{overflow-x:auto}#tbl table{min-width:560px}
+/* round 2: squares, insights, day table */
+.k3{grid-template-columns:repeat(3,1fr)}.sq{aspect-ratio:1;display:flex;flex-direction:column;overflow:auto;scrollbar-width:thin;padding:20px}.sqb{flex:1;min-height:0;display:flex;flex-direction:column;gap:10px}
+.kst{flex:1;display:flex;flex-direction:column;justify-content:space-between}
+.kr{display:flex;gap:14px;align-items:center;padding:10px 8px;border-radius:12px;transition:background-color .25s}.kr+.kr{border-top:1px solid var(--line)}.kr:hover{background:var(--panel2)}
+.kr .ico{width:46px;height:46px;border-radius:13px;display:grid;place-items:center;flex:none;color:var(--c);background:color-mix(in srgb,var(--c) 16%,transparent)}
+.kr span{color:var(--mut);font-size:13px}.kr .n{font-size:26px;font-weight:800;letter-spacing:-.03em;line-height:1.15;font-variant-numeric:tabular-nums}.kr.warn .ico{animation:pulse 1.8s infinite}
+.sec h4{margin:0 0 6px;font-size:13px;font-weight:700;color:var(--mut)}
+div.mini{display:grid;grid-template-columns:96px 1fr 40px;gap:8px;align-items:center;font-size:13px;margin-bottom:5px}div.mini>span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}div.mini b{text-align:right}div.mini.idle{grid-template-columns:1fr auto}
+.pk{display:flex;align-items:center;gap:8px;font-size:14px}.spk{width:100%;height:34px;display:block;margin-top:6px}.spk rect{fill:var(--line)}.spk rect.pkb{fill:var(--up)}
+.wk{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.wb{display:flex;flex-direction:column;gap:2px;align-items:center;font-size:12px}.wb small{font-size:11px}
+.wb .col{width:100%;height:58px;display:flex;align-items:flex-end;background:var(--panel2);border-radius:8px;overflow:hidden}.wb .col i{display:block;width:100%;border-radius:6px 6px 0 0;transform-origin:bottom;animation:growy 1s var(--ease) both}
+@keyframes growy{from{transform:scaleY(0)}}@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}}
+.pane{animation:fadeIn .35s var(--ease)}.off{display:none!important}
+.dsum{display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 10px}.dt{width:100%}.dt th{padding:6px;font-size:12px}.dt td{padding:9px 6px;font-size:13px}
+/* vertical bars */
+.sh{margin:30px 0 14px;font-size:20px;font-weight:800;letter-spacing:-.02em}
+.vb{display:flex;gap:10px;height:250px}.vc{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:6px}.vc b{font-size:12px;font-variant-numeric:tabular-nums}
+.vt{flex:1;width:100%;display:flex;align-items:flex-end;background:var(--panel2);border-radius:10px;overflow:hidden}.vt i{display:block;width:100%;background:var(--acc);border-radius:8px 8px 0 0;transform-origin:bottom;animation:growy .9s var(--ease) both}.vt i.lo{background:var(--amb)}
+.vc span{font-size:11px;color:var(--mut);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* inventory board: five compact cards in one box */
+.collage{padding:18px}.collage .chead{margin-bottom:14px}.collage .chead h3{margin:0}
+.cl{display:grid;grid-template-columns:repeat(12,1fr);gap:12px}
+.ct{grid-column:span 4;min-width:0;display:flex;flex-direction:column;padding:12px 14px 14px;border-radius:14px;background:var(--panel2);border:1px solid var(--line);transition:transform .3s var(--ease),border-color .3s}
+.ct:hover{transform:translateY(-3px);border-color:var(--acc)}.ct.d{grid-column:span 7}.ct.e{grid-column:span 5}
+.cth{margin:0 0 10px;font-size:13px;gap:6px;white-space:nowrap}.cth small{margin-left:auto;font-size:11px;font-weight:500;color:var(--mut)}
+.ctb{flex:1;display:flex;flex-direction:column;min-width:0}
+.cl .chip{font-size:10px;padding:1px 7px}
+.cl .vb{height:180px;gap:6px}.cl .vc{gap:4px}.cl .vc b{font-size:11px}.cl .vt{background:var(--panel);border-radius:7px}.cl .vt i{border-radius:5px 5px 0 0}
+.cl .vc span{height:22px;font-size:9.5px;line-height:1.15;text-align:center;white-space:normal;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.cl .tiles{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;max-height:200px}
+.cl .tile{padding:8px 9px;gap:8px;border-radius:12px;background:var(--panel)}.cl .tile svg{width:42px;height:42px}
+.cl .tm b{font-size:12px}.cl .tm small{font-size:10.5px}
+.ct .ch{flex:1;height:auto;min-height:210px}.ct .ch canvas{position:absolute;inset:0}
+.tmw{position:relative;flex:1;min-height:170px}
+.tb{position:absolute;display:flex;flex-direction:column;overflow:hidden;padding:4px 6px;border-radius:6px;border:1.5px solid var(--panel2);background:color-mix(in srgb,var(--acc) 38%,var(--panel));font-size:10px;line-height:1.25;animation:fadeIn .5s var(--ease) both;transition:filter .2s}
+.tb:hover{filter:brightness(1.25)}.tb.dead{background:color-mix(in srgb,var(--down) 40%,var(--panel))}
+.tb b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.tb span{color:var(--mut)}.tnote{margin:8px 0 0;font-size:11px}
+/* sales calendar */
+.fsum{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.calg{display:grid;grid-template-columns:42px repeat(7,minmax(0,1fr));gap:4px;align-items:center}
+.wh{text-align:center;font-size:11px;font-weight:700;color:var(--mut)}.wh.pk2{color:var(--acc)}
+.wl{font-size:11px;color:var(--mut);white-space:nowrap}
+.cd{height:28px;display:grid;place-items:center;border-radius:7px;background:var(--panel);border:1px solid var(--line);font-size:11px;font-weight:700;font-variant-numeric:tabular-nums;animation:fadeIn .4s var(--ease) both;animation-delay:calc(var(--i)*15ms);transition:transform .2s var(--ease)}
+.cd.on{background:color-mix(in srgb,var(--acc) var(--pc),var(--panel));border-color:transparent}.cd.hi{color:#fff}
+.cd.fut{background:transparent;border-style:dashed;opacity:.4}.cd.tod{box-shadow:0 0 0 2px #ffc83d}.cd:hover{transform:scale(1.14)}
+.cscale{display:flex;align-items:center;justify-content:flex-end;gap:4px;margin-top:auto;padding-top:10px;font-size:11px;color:var(--mut)}.cscale i{display:block;width:13px;height:13px;border-radius:3px;border:1px solid var(--line)}
+@media(max-width:1280px){.ct{grid-column:span 6}.ct.c{grid-column:1/-1}}
+@media(max-width:900px){.ct,.ct.d,.ct.e{grid-column:1/-1}}
+button,.btn{font:inherit;font-weight:700;border:0;border-radius:10px;padding:9px 16px;background:var(--acc);color:#fff;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:8px;transition:transform .2s var(--ease),box-shadow .25s,border-color .25s,background-color .25s}
+button:hover,.btn:hover{transform:translateY(-2px);box-shadow:0 10px 22px -8px var(--acc)}button:active,.btn:active{transform:scale(.96)}
+.light{background:var(--panel2);color:var(--ink);border:1px solid var(--line)}.light:hover{border-color:var(--acc);box-shadow:none}
+.danger{background:transparent;color:var(--down);border:1px solid color-mix(in srgb,var(--down) 40%,transparent)}.danger:hover{background:color-mix(in srgb,var(--down) 12%,transparent);box-shadow:none}
+.act{display:flex;gap:6px;justify-content:flex-end}.act button,.act .btn{padding:5px 10px;font-size:13px}
+input,textarea{font:inherit;width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel2);color:var(--ink);transition:border-color .2s,box-shadow .2s}
+input:focus,textarea:focus{outline:0;border-color:var(--acc);box-shadow:0 0 0 3px var(--glow)}:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
 label{display:block;font-weight:700;font-size:13px;margin-bottom:14px}label input,label textarea{margin-top:5px;font-weight:400}.f2{display:grid;grid-template-columns:1fr 1fr;gap:0 16px}
-.err{color:var(--red);font-size:14px;min-height:20px;margin-bottom:8px}
-.b{padding:2px 9px;border-radius:99px;font-size:12px;font-weight:700}.green{background:#dcf5e8;color:var(--grn)}.amber{background:#fff0c9;color:var(--amb)}.red{background:#fde3e1;color:var(--red)}
-.act{display:flex;gap:6px;justify-content:flex-end}.act button,.act .btn{padding:5px 10px;font-size:13px}.ch{position:relative;height:250px}
-.grid>*{min-width:0}.chart-empty{height:100%;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--mut);padding:20px}#tbl{overflow-x:auto}#tbl table{min-width:560px}
-.auth{width:100%;max-width:400px;margin:8vh auto;padding:28px}.muted{color:var(--mut)}
-#toast{position:fixed;bottom:24px;right:24px;background:var(--ink);color:#fff;padding:10px 18px;border-radius:10px;opacity:0;transition:opacity .2s;pointer-events:none}#toast.show{opacity:1}
-dialog{border:0;border-radius:14px;padding:22px;width:370px;max-width:92vw;box-shadow:0 20px 60px #0005}dialog::backdrop{background:#0a1220aa}
-@media(max-width:900px){#app{display:block}aside{width:auto;height:auto;position:static}main{padding:18px}.k4{grid-template-columns:1fr 1fr}.c21,.c2,.f2{grid-template-columns:1fr}}
+.err{color:var(--down);font-size:14px;min-height:20px;margin-bottom:8px}.auth{width:100%;max-width:400px;margin:8vh auto;padding:28px}
+button.tfix{position:fixed;top:18px;right:18px;width:40px;height:40px;padding:0;display:grid;place-items:center;background:var(--panel);color:var(--ink);border:1px solid var(--line);z-index:5}
+#toast{position:fixed;bottom:24px;right:24px;background:var(--panel2);color:var(--ink);border:1px solid var(--line);padding:10px 18px;border-radius:10px;opacity:0;transform:translateY(12px);transition:opacity .25s,transform .35s var(--ease);pointer-events:none;z-index:9}#toast.show{opacity:1;transform:none}
+dialog{border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:16px;padding:22px;width:370px;max-width:92vw;box-shadow:0 24px 70px #0008}
+dialog[open]{animation:pop .3s var(--ease)}dialog::backdrop{background:#050a14b0;backdrop-filter:blur(3px)}@keyframes pop{from{opacity:0;transform:scale(.94) translateY(10px)}}
+@media(max-width:900px){#app{display:block}aside{width:auto!important;height:auto;position:static}aside.mini .lbl{opacity:1}main{padding:18px}.k4{grid-template-columns:1fr 1fr}.c21,.c2,.f2{grid-template-columns:1fr}#pill,.collapse{display:none}.k3{grid-template-columns:1fr}.sq{aspect-ratio:auto}nav a.on{background:#ffffff12}}
+@media(prefers-reduced-motion:reduce){*,::before,::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
 </style></head>
 <body><div id="app"></div><dialog id="dlg"></dialog><div id="toast"></div>
 <script>
-const $=s=>document.querySelector(s), app=$('#app');
-let user=null, charts=[];
+const $=s=>document.querySelector(s), app=$('#app'), UP='#22c55e', DN='#ef4444';
+let user=null, charts=[], timer=null, hist={ok:[],low:[],out:[]}, sel=null, hov=null, plist=[], cc=null, pc=null, CD=[], vals=[0,0,0], sig={};
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmt=n=>n==null?'—':Number(n).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
-const int=n=>Number(n).toLocaleString();
+const int=n=>Number(n).toLocaleString(), css=k=>getComputedStyle(document.documentElement).getPropertyValue(k).trim();
+const P={box:'<path d="m7.5 4.3 9 5.2M21 8v8a2 2 0 0 1-1 1.7l-7 4a2 2 0 0 1-2 0l-7-4A2 2 0 0 1 3 16V8a2 2 0 0 1 1-1.7l7-4a2 2 0 0 1 2 0l7 4A2 2 0 0 1 21 8z"/><path d="m3.3 7 8.7 5 8.7-5M12 22V12"/>',
+layers:'<path d="m12 2 10 5-10 5L2 7z"/><path d="m2 17 10 5 10-5M2 12l10 5 10-5"/>',
+wallet:'<path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/>',
+alert:'<path d="m21.7 18-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3z"/><path d="M12 9v4M12 17h.01"/>',
+grid:'<rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/>',
+sliders:'<path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/>',
+sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+moon:'<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"/>',logout:'<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>',
+plus:'<path d="M12 5v14M5 12h14"/>',chev:'<path d="m15 18-6-6 6-6"/>',x:'<path d="M18 6 6 18M6 6l12 12"/>',check:'<path d="m20 6-11 11-5-5"/>',
+trend:'<path d="m22 7-8.5 8.5-5-5L2 17"/><path d="M16 7h6v6"/>',pulse:'<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',bars:'<path d="M18 20V10M12 20V4M6 20v-6"/>'};
+const ic=(n,s=20,c='')=>`<svg class="ic ${c}" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${P[n]}</svg>`;
 const toast=m=>{const t=$('#toast');t.textContent=m;t.className='show';setTimeout(()=>t.className='',2200)};
 async function api(path,method='GET',body){
   const r=await fetch('/api'+path,{method,headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined});
@@ -49,74 +156,250 @@ async function api(path,method='GET',body){
 }
 const bindForm=(sel,fn)=>$(sel).addEventListener('submit',async e=>{e.preventDefault();const err=$(sel+' .err');err.textContent='';
   try{await fn(Object.fromEntries(new FormData(e.target)))}catch(x){err.textContent=x.message}});
-const status=p=>p.quantity===0?'<span class="b red">Out of stock</span>':p.is_low?'<span class="b amber">Low stock</span>':'<span class="b green">In stock</span>';
+const stOf=p=>p.quantity===0?'out':p.is_low?'low':'ok';
+const status=p=>({out:'<span class="b red">Out of stock</span>',low:'<span class="b amber">Low stock</span>',ok:'<span class="b green">In stock</span>'})[stOf(p)];
+const themeBtn=(c='')=>`<button class="tbtn ${c}" title="Switch theme" aria-label="Switch theme">${ic('sun',18,'sun')}${ic('moon',18,'moon')}</button>`;
+function toggleTheme(){const t=document.documentElement.dataset.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=t;
+  try{localStorage.setItem('sf-theme',t)}catch(e){} if(user&&(!location.hash||location.hash==='#/dashboard'))route();}
+document.addEventListener('click',e=>{if(e.target.closest('.tbtn'))toggleTheme()});
+function count(el,to,dec=0){ if(!el)return; const from=+el.dataset.v||0; if(from===to&&el.textContent)return; el.dataset.v=to; const t0=performance.now();
+  (function f(t){const k=Math.min((t-t0)/800,1),e=1-Math.pow(1-k,3);el.textContent=(from+(to-from)*e).toLocaleString(undefined,{minimumFractionDigits:dec,maximumFractionDigits:dec});if(k<1)requestAnimationFrame(f)})(t0) }
 
+function movePill(){const a=$('nav a.on'),p=$('#pill');if(a&&p){p.style.height=a.offsetHeight+'px';p.style.transform=`translateY(${a.offsetTop}px)`}}
 function shell(title,body,actions=''){
   const cur=location.hash||'#/dashboard';
-  const nav=[['dashboard','Dashboard'],['products','Products'],['settings','Settings']].map(([k,l])=>`<a href="#/${k}" class="${cur.startsWith('#/'+k)?'on':''}">${l}</a>`).join('');
-  app.innerHTML=`<aside><div class="logo">Stock<b>Flow</b></div><nav>${nav}</nav><div class="me"><div>${esc(user.org)}</div><small>${esc(user.email)}</small><button id="out" class="ghost">Log out</button></div></aside><main><header><h1>${title}</h1><div>${actions}</div></header>${body}</main>`;
-  $('#out').onclick=async()=>{await api('/auth/logout','POST');user=null;location.hash='#/login'};
+  if(!$('aside')){
+    let mini=false;try{mini=localStorage.getItem('sf-mini')==='1'}catch(e){}
+    const nav=[['dashboard','Dashboard','grid'],['products','Products','box'],['settings','Settings','sliders']].map(([k,l,i])=>`<a href="#/${k}" data-k="${k}">${ic(i)}<span class="lbl">${l}</span></a>`).join('');
+    app.innerHTML=`<aside class="${mini?'mini':''}"><div class="logo"><i>${ic('box')}</i><span class="lbl">Stock<b>Flow</b></span></div><nav><span id="pill"></span>${nav}</nav>
+    <div class="me"><div class="who"><span class="av">${esc(String(user.org||'?')[0].toUpperCase())}</span><div class="lbl"><div>${esc(user.org)}</div><small>${esc(user.email)}</small></div></div>
+    <div class="tools">${themeBtn('side')}<button class="side collapse" id="col" title="Collapse sidebar" aria-label="Collapse sidebar">${ic('chev',18)}</button><button class="side" id="out" title="Log out" aria-label="Log out">${ic('logout',18)}</button></div></div></aside><main></main>`;
+    $('#out').onclick=async()=>{await api('/auth/logout','POST');user=null;location.hash='#/login'};
+    $('#col').onclick=()=>{const m=$('aside').classList.toggle('mini');try{localStorage.setItem('sf-mini',m?'1':'0')}catch(e){}};
+  }
+  document.querySelectorAll('nav a').forEach(a=>a.classList.toggle('on',cur.startsWith('#/'+a.dataset.k)));
+  movePill();
+  $('main').innerHTML=`<header class="rise"><h1>${title}</h1><div>${actions}</div></header><div>${body}</div>`;
 }
 
 function authView(signup){
-  app.innerHTML=`<form id="f" class="auth card"><div class="logo" style="padding:0;margin-bottom:4px">Stock<b style="color:var(--acc)">Flow</b></div>
+  app.innerHTML=`${themeBtn('tfix')}<form id="f" class="auth card rise"><div class="logo" style="padding:0;margin-bottom:6px"><i>${ic('box')}</i>Stock<b style="color:var(--acc)">Flow</b></div>
   <p class="muted" style="margin-top:0">${signup?'Create your workspace':'Log in to your workspace'}</p>
   ${signup?'<label>Organization name<input name="orgName" required maxlength="80" placeholder="My Test Store"></label>':''}
   <label>Email<input name="email" type="email" required autocomplete="email"></label>
   <label>Password<input name="password" type="password" required minlength="8" autocomplete="${signup?'new':'current'}-password"></label>
   ${signup?'<label>Confirm password<input name="confirm" type="password" required autocomplete="new-password"></label>':''}
-  <div class="err"></div><button style="width:100%">${signup?'Sign up':'Log in'}</button>
+  <div class="err"></div><button style="width:100%;justify-content:center">${signup?'Sign up':'Log in'}</button>
   <p style="text-align:center;font-size:14px;margin-bottom:0">${signup?'Have an account? <a href="#/login">Log in</a>':'New here? <a href="#/signup">Create an account</a>'}</p></form>`;
   bindForm('#f',async d=>{ if(signup&&d.password!==d.confirm) throw new Error('Passwords do not match');
     await api(signup?'/auth/signup':'/auth/login','POST',d); user=await api('/me'); location.hash='#/dashboard'; });
 }
 
+/* ---------- dashboard ---------- */
+const KEYS=[['ok','In stock',UP],['low','Low stock','#f5a300'],['out','Out of stock',DN]];
+const col=i=>CD[i]&&CD[i].c<CD[i].o?DN:UP;
+const lastLine={id:'ll',afterDatasetsDraw(ch){const c=CD[CD.length-1];if(!c)return;const{ctx,chartArea:a,scales:{y}}=ch,yy=y.getPixelForValue(c.c);
+  ctx.save();ctx.setLineDash([5,4]);ctx.strokeStyle=col(CD.length-1);ctx.beginPath();ctx.moveTo(a.left,yy);ctx.lineTo(a.right,yy);ctx.stroke();ctx.restore()}};
+const R=24, CF=2*Math.PI*R;
+const tile=(p,i)=>{const z=p.quantity===0,r=Math.min(p.quantity/(p.threshold_used||1),1);
+  return `<div class="tile ${z?'crit':''}" style="--i:${i}"><svg width="64" height="64" viewBox="0 0 64 64" style="flex:none"><circle class="rt" cx="32" cy="32" r="${R}"/>
+  <circle class="rf" cx="32" cy="32" r="${R}" stroke-dasharray="${CF}" stroke-dashoffset="${CF*(1-r)}" style="--c:${CF}" transform="rotate(-90 32 32)"/><text x="32" y="37" text-anchor="middle">${p.quantity}</text></svg>
+  <div class="tm"><b title="${esc(p.name)}">${esc(p.name)}</b><small>${esc(p.sku)}, min ${p.threshold_used}</small>
+  <span class="chip ${z?'down':'amb'}" title="Estimated from average outbound stock movements in the last 30 days (or shorter available history)">${p.days_cover==null?'No usage data':Number(p.days_cover).toFixed(1)+' days left'}</span></div></div>`};
+
+function candles(tr){
+  CD=tr.map((t,i)=>({d:t.date,o:i?tr[i-1].units:t.units-((((ins||{}).days||{})[t.date])||{net:0}).net,c:t.units}));
+  $('#cemp').hidden=!!CD.length;
+  const l=CD[CD.length-1]||{o:0,c:0},x=l.c-l.o; count($('#last'),l.c);
+  const ch=$('#chg');ch.className='chip '+(x>0?'up':x<0?'down':'');ch.textContent=`${x>=0?'▲':'▼'} ${x>0?'+':''}${int(x)} (${(l.o?x/l.o*100:0).toFixed(1)}%) vs previous day`;
+  if(cc){cc.data.labels=CD.map(c=>c.d.slice(5));cc.data.datasets[0].data=CD.map(c=>[Math.min(c.o,c.c),Math.max(c.o,c.c)]);cc.update()}
+}
+function ctr(){const T=vals.reduce((a,b)=>a+b,0);$('#cn').textContent=int(hov==null?T:vals[hov]);$('#cl').textContent=hov==null?'total products':KEYS[hov][1]}
+function health(h){
+  vals=[h.ok,h.low,h.out];
+  KEYS.forEach(([k],i)=>{const a=hist[k];if(!a.length||a[a.length-1].n!==vals[i]){a.push({t:new Date(),n:vals[i]});if(a.length>20)a.shift()}});
+  const T=vals.reduce((a,b)=>a+b,0)||1;
+  vals.forEach((v,i)=>{count($('#ln'+i),v);$('#lp'+i).textContent=Math.round(v/T*100)+'%'});
+  if(pc){pc.data.datasets[0].data=vals;pc.update()} ctr();
+}
+function lists(d){
+  const st=JSON.stringify(d.top);
+  if(st!==sig.t){sig.t=st;const m=Math.max(1,...d.top.map(p=>p.quantity));
+    $('#top').innerHTML=d.top.length?`<div class="vb">${d.top.slice(0,8).map((p,i)=>`<div class="vc" title="${esc(p.name)}: ${int(p.quantity)}"><b>${int(p.quantity)}</b><div class="vt"><i class="${p.is_low?'lo':''}" style="height:${Math.max(p.quantity/m*100,3)}%;animation-delay:${i*70}ms"></i></div><span>${esc(short(p.name))}</span></div>`).join('')}</div>`:'<div class="chart-empty">No products yet.</div>'}
+  const sl=JSON.stringify(d.low);
+  if(sl!==sig.l){sig.l=sl;$('#low').innerHTML=d.low.length?`<div class="tiles">${d.low.slice(0,4).map(tile).join('')}</div>`:`<div class="chart-empty ok">${ic('check',30)}<span>All stocked up. Nothing is running low.</span></div>`}
+}
+function drawDetail(){
+  if(sel==null||!$('#det'))return;
+  const [k,name,c]=KEYS[sel],a=hist[k].slice(-5).reverse();
+  const ps=plist.filter(p=>stOf(p)===k).sort((x,y)=>k==='ok'?y.quantity-x.quantity:x.quantity-y.quantity).slice(0,5);
+  $('#det').innerHTML=`<div class="dh"><h3><i class="dot" style="background:${c}"></i>${name}: last ${a.length>1?a.length:'recorded'} reading${a.length>1?'s':''}</h3><button class="light x" id="dx" title="Close" aria-label="Close">${ic('x',16)}</button></div>
+  <div class="grid c2"><div><p class="muted sm" style="margin:0 0 4px">Count over time, newest first</p><ul class="rd">${a.map((r,i)=>{const pv=a[i+1],dl=pv?r.n-pv.n:null;
+    return `<li style="animation-delay:${i*60}ms"><span class="muted">${r.t.toLocaleTimeString()}${i?'':' (now)'}</span><b>${int(r.n)}</b><span class="chip ${dl>0?'up':dl<0?'down':''}">${dl==null?'first reading':dl>0?'▲ +'+dl:dl<0?'▼ '+dl:'no change'}</span></li>`}).join('')}</ul>
+    ${a.length<2?'<p class="muted sm">Watching for changes. New readings appear here every few seconds when the count moves.</p>':''}</div>
+  <div><p class="muted sm" style="margin:0 0 4px">Products in this status</p><ul class="rd">${ps.length?ps.map((p,i)=>`<li style="animation-delay:${i*60}ms"><span>${esc(p.name)}</span><b>${int(p.quantity)}</b></li>`).join(''):'<li class="muted">No products in this status.</li>'}</ul></div></div>`;
+  $('#dx').onclick=()=>{sel=null;$('#dwrap').classList.remove('open');document.querySelectorAll('.lg').forEach(x=>x.classList.remove('sel'))};
+}
+async function pick(i){
+  if(sel===i&&$('#dwrap')&&$('#dwrap').classList.contains('open'))return; sel=i;
+  KEYS.forEach((_,j)=>{const e=$('#lg'+j);if(e)e.classList.toggle('sel',j===i)});
+  plist=await api('/products').catch(()=>plist); drawDetail(); const w=$('#dwrap'); if(w&&sel===i)w.classList.add('open');
+}
+/* ---------- insights: day table, sales analysis, forecast ---------- */
+let ins=null, dayIdx=null, dayPin=null;
+const short=s=>s.length>16?s.slice(0,15)+'…':s, sgn=n=>(n>0?'+':'')+int(n);
+const nice=d=>new Date(d+'T00:00:00Z').toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric',timeZone:'UTC'});
+const NEEDS='<p class="muted sm">Add the /api/insights route to server.js to unlock this card.</p>';
+const hl={id:'hl',beforeDatasetsDraw(ch){ if(dayIdx==null)return; const m=ch.getDatasetMeta(0).data[dayIdx]; if(!m)return; const {ctx,chartArea:a}=ch,w=ch.scales.x.width/CD.length;
+  ctx.save();ctx.fillStyle=css('--glow');ctx.fillRect(m.x-w/2,a.top,w,a.bottom-a.top);ctx.restore()}};
+function showDay(i){
+  const c=CD[i]; if(!c)return hideDay(); dayIdx=i;
+  const dd=ins&&ins.days[c.d], x=c.c-c.o;
+  $('#pieV').classList.add('off'); $('#dayV').classList.remove('off');
+  $('#dayV').innerHTML=`<div class="dh"><h3>${ic('layers',18)}${nice(c.d)}</h3>${dayPin!=null?`<button class="light x" id="dpx" title="Back to stock health" aria-label="Back to stock health">${ic('x',16)}</button>`:'<span class="muted sm">Click to pin</span>'}</div>
+  <div class="dsum"><span class="chip">Opened ${int(c.o)}</span><span class="chip">Closed ${int(c.c)}</span><span class="chip ${x>0?'up':x<0?'down':''}">${x>0?'▲':x<0?'▼':'•'} ${sgn(x)}</span></div>
+  ${!ins?NEEDS:dd&&dd.top.length?`<table class="dt"><thead><tr><th>Item</th><th class="r">Opened</th><th class="r">Closed</th><th class="r">Change</th></tr></thead><tbody>${dd.top.map(t=>`<tr><td title="${esc(t.name)}">${esc(short(t.name))}</td><td class="r">${int(t.open)}</td><td class="r">${int(t.close)}</td><td class="r"><span class="chip ${t.change>0?'up':'down'}">${sgn(t.change)}</span></td></tr>`).join('')}</tbody></table>
+  <p class="muted sm" style="margin:10px 0 0">Top ${dd.top.length} of ${dd.items} items that moved. Sold ${int(dd.sold)}, received ${int(dd.received)}.</p>`:'<p class="muted">No item movements recorded for this day.</p>'}`;
+  const b=$('#dpx'); if(b)b.onclick=()=>{dayPin=null;hideDay()};
+  if(cc)cc.draw();
+}
+function hideDay(){dayIdx=null;if($('#dayV'))$('#dayV').classList.add('off');if($('#pieV'))$('#pieV').classList.remove('off');if(cc)cc.draw()}
+function insightsPaint(){
+  if(!$('#ana'))return;
+  const k=JSON.stringify(ins&&[ins.analysis,ins.forecast]); if(k===sig.i)return; sig.i=k;
+  $('#conf').textContent='';
+  if(!ins){$('#ana').innerHTML=NEEDS;$('#fc').innerHTML=NEEDS;return}
+  const a=ins.analysis,f=ins.forecast,mx=Math.max(1,...a.sellers.map(s=>s.units)),sm=Math.max(1,...a.spark.map(s=>s.units));
+  $('#ana').innerHTML=`<div class="sec"><h4>Most sold</h4>${a.sellers.length?a.sellers.map(s=>`<div class="mini"><span title="${esc(s.name)}">${esc(short(s.name))}</span><div class="trk"><i style="width:${s.units/mx*100}%;background:var(--up)"></i></div><b>${int(s.units)}</b></div>`).join(''):'<p class="muted sm">No sales in the last 30 days.</p>'}</div>
+  <div class="sec"><h4>Not selling</h4>${a.idle.length?a.idle.map(p=>`<div class="mini idle"><span title="${esc(p.name)}">${esc(short(p.name))}</span><span class="chip amb">${int(p.quantity)} unsold</span></div>`).join(''):'<p class="muted sm">Everything in stock has sold recently.</p>'}</div>
+  <div class="sec"><h4>Busiest day</h4>${a.peak?`<div class="pk"><b>${nice(a.peak.date)}</b><span class="chip up">${int(a.peak.units)} sold</span></div>`:'<p class="muted sm">No sales yet.</p>'}
+  <svg class="spk" viewBox="0 0 120 34" preserveAspectRatio="none">${a.spark.map((s,i)=>{const h=Math.max(1,s.units/sm*32);return `<rect class="${a.peak&&s.date===a.peak.date?'pkb':''}" x="${i*4+.5}" y="${34-h}" width="3" height="${h}" rx="1"/>`}).join('')}</svg></div>`;
+  if(!f.ready){$('#fc').innerHTML=`<div class="chart-empty">${ic('trend',28)}<span>The forecast needs about two weeks of sales history. ${f.history_days} day${f.history_days==1?'':'s'} so far.</span></div>`;return}
+  const g=f.prev30?(f.next30-f.prev30)/f.prev30*100:0, wm=Math.max(1,...f.weeks.map(w=>w.units)), av=f.weeks.reduce((s,w)=>s+w.units,0)/f.weeks.length;
+  const li=(l,t)=>l.length?l.map(p=>`<div class="mini idle"><span title="${esc(p.name)}">${esc(short(p.name))}</span><span class="chip ${t}">${int(p.now)} → ${int(p.next)}</span></div>`).join(''):'<p class="muted sm">Nothing stands out yet.</p>';
+  $('#conf').textContent=f.confidence+' confidence';
+  $('#fc').innerHTML=`<div class="big"><b>${int(f.next30)}</b><span class="muted sm">units to sell</span><span class="chip ${g>=0?'up':'down'}">${g>=0?'▲':'▼'} ${Math.abs(g).toFixed(0)}%</span><span class="muted sm">vs last 30 days</span></div>
+  <div class="wk">${f.weeks.map(w=>`<div class="wb" title="Week starting ${w.label}"><div class="col"><i style="height:${Math.max(4,w.units/wm*100)}%;background:${w.units>=av?'var(--up)':'var(--down)'}"></i></div><b>${int(w.units)}</b><small class="muted">${w.label}</small></div>`).join('')}</div>
+  <div class="sec"><h4>May sell more (last 30 days → next 30)</h4>${li(f.rising,'up')}</div><div class="sec"><h4>May sell less</h4>${li(f.falling,'down')}</div>
+  ${f.best_days.length?`<p class="sm muted" style="margin:0">Strongest days: ${f.best_days.join(', ')}. Weakest: ${f.slow_days.join(', ')}.</p>`:''}`;
+}
+function paint(d){
+  if(!$('#k0'))return;
+  count($('#k0'),d.totalProducts);count($('#k1'),d.totalUnits);count($('#k2'),+d.stockValue||0,2);count($('#k3'),d.lowCount);
+  $('.s3').classList.toggle('warn',!!d.lowCount); $('#upd').textContent='Updated '+new Date().toLocaleTimeString();
+  candles(d.trend);health(d.health);lists(d);insightsPaint();widgets();
+  if(dayIdx!=null)showDay(dayIdx);
+  if(sel!=null)api('/products').then(p=>{plist=p;drawDetail()}).catch(()=>{});
+}
+/* ---------- inventory board widgets ---------- */
+let fc=null;
+const NEEDS2='<p class="muted sm">Install the latest insights-route.js in server.js to unlock this card.</p>';
+const DOW=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'], REST='#22d3ee', SOLD='#a78bfa', NET='#f5a300';
+const cmp=n=>n>=1e4?Math.round(n/1e3)+'k':n>=1e3?(n/1e3).toFixed(1)+'k':String(n);
+const empty=t=>`<div class="chart-empty">${t}</div>`;
+function mkCharts(){
+  fc=null; if(!window.Chart)return; const grid=css('--line');
+  fc=new Chart($('#c4'),{type:'bar',data:{labels:[],datasets:[{label:'Restocked',data:[],backgroundColor:REST,borderRadius:3,stack:'s'},{label:'Sold',data:[],backgroundColor:SOLD,borderRadius:3,stack:'s'},{type:'line',label:'Net change',data:[],borderColor:NET,backgroundColor:NET,borderWidth:2,pointRadius:0,tension:.3}]},
+    options:{responsive:true,maintainAspectRatio:false,animation:{duration:900,easing:'easeOutQuart'},interaction:{mode:'index',intersect:false},
+      plugins:{legend:{position:'bottom',labels:{boxWidth:9,boxHeight:9,font:{size:11}}},tooltip:{callbacks:{label:x=>`${x.dataset.label}: ${x.dataset.label==='Net change'?sgn(x.parsed.y):int(Math.abs(x.parsed.y))}`}}},
+      scales:{x:{stacked:true,grid:{display:false},ticks:{maxTicksLimit:8,font:{size:10}}},y:{stacked:true,grid:{color:grid},ticks:{maxTicksLimit:6,font:{size:10},callback:v=>int(Math.abs(v))}}}}});
+}
+function tm(items,x,y,w,h,out){ if(!items.length)return; if(items.length===1){out.push({...items[0],x,y,w,h});return}
+  const tot=items.reduce((s,i)=>s+i.v,0); let acc=0,k=0; while(k<items.length-1&&acc+items[k].v<=tot/2)acc+=items[k++].v; if(!k){acc=items[0].v;k=1}
+  const f=acc/tot,a=items.slice(0,k),b=items.slice(k);
+  if(w>=h){tm(a,x,y,w*f,h,out);tm(b,x+w*f,y,w*(1-f),h,out)}else{tm(a,x,y,w,h*f,out);tm(b,x,y+h*f,w,h*(1-f),out)} }
+function paintCal(){
+  const dl=ins.calendar||[]; if(!dl.length){$('#cal').innerHTML=empty('No sales yet.');return}
+  const m=Object.fromEntries(dl.map(x=>[x.date,x.units])), td=dl[dl.length-1].date, end=new Date(td+'T00:00:00Z'), st=+end-(end.getUTCDay()+28)*864e5;
+  const cells=[...Array(35)].map((_,i)=>{const key=new Date(st+i*864e5).toISOString().slice(0,10);return{key,dow:i%7,fut:key>td,v:m[key]||0}});
+  const past=cells.filter(c=>!c.fut), mx=Math.max(1,...past.map(c=>c.v)), sum=Array(7).fill(0), n=Array(7).fill(0);
+  past.forEach(c=>{sum[c.dow]+=c.v;n[c.dow]++});
+  const av=sum.map((s,i)=>n[i]?s/n[i]:0), best=av.some(x=>x>0)?av.indexOf(Math.max(...av)):-1;
+  $('#cal').innerHTML=(best<0?'<p class="muted sm" style="margin:0 0 12px">No sales in the last 5 weeks.</p>':`<div class="fsum"><span class="chip up">Busiest: ${DOW[best]}</span><span class="muted sm">averages ${av[best].toFixed(av[best]<10?1:0)} sold</span></div>`)
+  +`<div class="calg"><span></span>${DOW.map((d,i)=>`<span class="wh ${i===best?'pk2':''}">${d}</span>`).join('')}`
+  +[0,1,2,3,4].map(w=>`<span class="wl">${new Date(st+w*7*864e5).toLocaleDateString(undefined,{month:'short',day:'numeric',timeZone:'UTC'})}</span>`
+    +cells.slice(w*7,w*7+7).map((c,j)=>{const p=c.v?Math.round(14+c.v/mx*86):0;
+      return `<div class="cd ${c.fut?'fut':c.v?'on'+(p>55?' hi':''):''} ${c.key===td?'tod':''}" style="--pc:${p}%;--i:${w*7+j}" title="${nice(c.key)}${c.fut?'':': '+int(c.v)+' sold'}">${c.fut||!c.v?'':cmp(c.v)}</div>`}).join('')).join('')
+  +`</div><div class="cscale">Less ${[0,25,50,75,100].map(p=>`<i style="background:color-mix(in srgb,var(--acc) ${p}%,var(--panel))"></i>`).join('')} More</div>`;
+}
+function widgets(){
+  if(!$('#tmap'))return;
+  const k=JSON.stringify(ins&&ins.items&&[ins.items,ins.days,ins.calendar,ins.analysis.spark])||'none'; if(k===sig.w)return; sig.w=k;
+  if(!ins||!ins.items){$('#tmap').innerHTML=NEEDS2;$('#cal').innerHTML=NEEDS2;return}
+  const it=ins.items;
+  // sold vs restocked
+  const ds=ins.analysis.spark.map(s=>s.date);
+  if(fc){const r=ds.map(d=>(ins.days[d]||{}).received||0),s=ds.map(d=>(ins.days[d]||{}).sold||0);fc.data.labels=ds.map(d=>d.slice(5));fc.data.datasets[0].data=r;fc.data.datasets[1].data=s.map(x=>-x);fc.data.datasets[2].data=r.map((x,i)=>x-s[i]);fc.update()}
+  // treemap
+  const tv=it.filter(p=>p.value>0).sort((a,b)=>b.value-a.value), tt=tv.slice(0,8).map(p=>({n:p.name,v:p.value,dead:!p.sold30})), rest=tv.slice(8), out=[];
+  if(rest.length)tt.push({n:`${rest.length} others`,v:rest.reduce((s,p)=>s+p.value,0),dead:rest.every(p=>!p.sold30)});
+  tm(tt,0,0,100,56,out);
+  $('#tmap').innerHTML=out.length?`<div class="tmw">${out.map((b,i)=>`<div class="tb ${b.dead?'dead':''}" title="${esc(b.n)}: ${fmt(b.v)}${b.dead?' (no sales in 30 days)':''}" style="left:${b.x}%;top:${b.y/.56}%;width:${b.w}%;height:${b.h/.56}%;animation-delay:${i*50}ms"><b>${esc(b.n)}</b><span>${cmp(Math.round(b.v))}</span></div>`).join('')}</div><p class="muted tnote">Size = stock value at cost. Red = no sale in 30 days.</p>`:'<p class="muted sm">No stock value yet. Add cost prices and quantities.</p>';
+  // calendar
+  paintCal();
+}
+const load=()=>Promise.all([api('/dashboard'),api('/insights').catch(()=>ins)]);
 async function dashboard(){
-  const d=await api('/dashboard'), h=d.health;
-  const stat=(l,v,c='')=>`<div class="card stat ${c}"><span>${l}</span><div class="n">${v}</div></div>`;
-  const rows=d.low.map(p=>`<tr><td>${esc(p.name)}</td><td>${esc(p.sku)}</td><td class="r">${p.quantity}</td><td class="r">${p.threshold_used}</td><td class="r" title="Estimated from average outbound stock movements in the last 30 days (or shorter available history)">${p.days_cover == null ? 'No usage data' : `${Number(p.days_cover).toFixed(1)} days`}</td></tr>`).join('')
-    ||'<tr><td colspan="5" class="muted">Nothing is running low.</td></tr>';
-  shell('Dashboard',`${d.totalProducts?'':'<div class="card" style="margin-bottom:16px">No products yet. <a href="#/products/new">Add your first product</a> to see your stock charts.</div>'}
-  <div class="grid k4">${stat('Products',int(d.totalProducts))}${stat('Units on hand',int(d.totalUnits))}${stat('Stock value at cost',fmt(d.stockValue))}${stat('Low-stock items',int(d.lowCount),d.lowCount?'warn':'')}</div>
-  <div class="grid c21" style="margin:16px 0"><div class="card"><h3>Total units on hand, last 30 days</h3><div class="ch">${d.trend.length?'<canvas id="c1"></canvas>':'<div class="chart-empty">No stock movement history yet. Add a product or adjust stock to start the trend.</div>'}</div>${d.trend.length===1?'<p class="muted" style="font-size:12px;margin:8px 0 0">Trend builds as you add stock movements.</p>':''}</div>
-  <div class="card"><h3>Stock health</h3><div class="ch"><canvas id="c2"></canvas></div></div></div>
-  <div class="grid c2"><div class="card"><h3>Top products by quantity <span class="muted" style="font-weight:400">(amber = low stock)</span></h3><div class="ch"><canvas id="c3"></canvas></div></div>
-  <div class="card"><h3>Low-stock items</h3><table><thead><tr><th>Name</th><th>SKU</th><th class="r">On hand</th><th class="r">Threshold</th><th class="r" title="Estimated from average outbound stock movements in the last 30 days (or shorter available history)">Days of cover</th></tr></thead><tbody>${rows}</tbody></table></div></div>`,
-  '<a class="btn" href="#/products/new">Add product</a>');
-  if(!window.Chart) return;
-  Chart.defaults.font.family="'Bricolage Grotesque',system-ui,sans-serif"; Chart.defaults.color='#667389';
-  const mk=(id,c)=>charts.push(new Chart($(id),{...c,options:{responsive:true,maintainAspectRatio:false,...c.options}}));
-  if(d.trend.length) mk('#c1',{type:'line',data:{labels:d.trend.map(t=>t.date.slice(5)),datasets:[{
-    label:'Total units on hand',data:d.trend.map(t=>t.units),borderColor:'#2748d6',backgroundColor:'rgba(39,72,214,.1)',
-    fill:true,tension:.25,pointRadius:2.5,pointHoverRadius:7,pointHitRadius:12,
-    pointBackgroundColor:'#fff',pointBorderColor:'#2748d6',pointBorderWidth:2,borderWidth:2.5
-  }]},options:{
-    interaction:{mode:'index',axis:'x',intersect:false},
-    plugins:{legend:{display:false},tooltip:{enabled:true,mode:'index',intersect:false,displayColors:false,
-      callbacks:{title:items=>items.length?`Date: ${d.trend[items[0].dataIndex].date}`:'',label:ctx=>`Total units: ${int(ctx.parsed.y)}`}}},
-    hover:{mode:'index',intersect:false},
-    scales:{y:{beginAtZero:true},x:{grid:{display:false},ticks:{maxTicksLimit:8}}}
-  }});
-  mk('#c2',{type:'doughnut',data:{labels:['In stock','Low stock','Out of stock'],datasets:[{data:[h.ok,h.low,h.out],backgroundColor:['#2748d6','#f5a300','#c62f26'],borderWidth:0}]},
-    options:{cutout:'66%',plugins:{legend:{position:'bottom'}}}});
-  mk('#c3',{type:'bar',data:{labels:d.top.map(p=>p.name),datasets:[{data:d.top.map(p=>p.quantity),backgroundColor:d.top.map(p=>p.is_low?'#f5a300':'#2748d6'),borderRadius:5}]},
-    options:{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{beginAtZero:true},y:{grid:{display:false}}}}});
+  const [d,i]=await load(); ins=i; sel=hov=dayIdx=dayPin=null; sig={}; CD=[];
+  const kr=(i,l,ico,c)=>`<div class="kr s${i}" style="--c:${c}"><div class="ico">${ic(ico,22)}</div><div><span>${l}</span><div class="n" id="k${i}"></div></div></div>`;
+  shell('Dashboard',`${d.totalProducts?'':'<div class="card rise" style="margin-bottom:16px">No products yet. <a href="#/products/new">Add your first product</a> to see your stock charts.</div>'}
+  <div class="grid k3">
+    <div class="card sq hov rise" style="--i:0"><h3>${ic('layers',18)}Inventory snapshot</h3><div class="kst">${kr(0,'Products','box','#6482ff')}${kr(1,'Units on hand','layers','#22c55e')}${kr(2,'Stock value at cost','wallet','#a78bfa')}${kr(3,'Low-stock items','alert','#f5a300')}</div></div>
+    <div class="card sq hov rise" style="--i:1"><h3>${ic('bars',18)}Sales analysis, last 30 days</h3><div id="ana" class="sqb"></div></div>
+    <div class="card sq hov rise" style="--i:2"><h3>${ic('trend',18)}Forecast, next 30 days <span class="chip" id="conf" style="margin-left:auto"></span></h3><div id="fc" class="sqb"></div></div>
+  </div>
+  <div class="grid c21">
+    <div class="card rise" style="--i:3"><div class="chead"><div><h3>${ic('trend',18)}Stock movement, last 30 days <span class="live"><i></i>Live</span></h3><div class="big"><b id="last"></b><span class="chip" id="chg"></span></div><p class="muted sm" style="margin:4px 0 0">Hover a bar to see which items moved that day. Click to pin it.</p></div><span class="muted sm" id="upd"></span></div>
+      <div class="ch tall"><canvas id="c1"></canvas><div class="chart-empty" id="cemp" hidden>No stock movement history yet. Add a product or adjust stock to start the chart.</div></div></div>
+    <div class="card rise" style="--i:4"><div class="pane" id="pieV"><h3>${ic('pulse',18)}Stock health <span class="live"><i></i>Live</span></h3>
+      <div class="ch pie"><span class="orb"></span><canvas id="c2"></canvas><div class="ctr"><b id="cn"></b><span id="cl"></span></div></div>
+      <div class="leg">${KEYS.map(([k,n,c],i)=>`<div class="lg" id="lg${i}" style="--c:${c}"><i class="dot" style="background:${c}"></i>${n}<div><b id="ln${i}"></b> <small class="muted" id="lp${i}"></small></div></div>`).join('')}</div></div>
+      <div class="pane off" id="dayV"></div></div>
+  </div>
+  <div class="reveal" id="dwrap"><div><div class="card" id="det"></div></div></div>
+  <div class="card collage rise mt" style="--i:5"><div class="chead"><h3>${ic('layers',18)}Inventory board <span class="live"><i></i>Live</span></h3></div>
+    <div class="cl">
+      <div class="ct a"><h3 class="cth">${ic('bars',16)}Top products by quantity<small>amber = low stock</small></h3><div id="top"></div></div>
+      <div class="ct b"><h3 class="cth">${ic('alert',16)}Low-stock items</h3><div id="low"></div></div>
+      <div class="ct c"><h3 class="cth">${ic('wallet',16)}Where your money is in stock</h3><div id="tmap" class="ctb"></div></div>
+      <div class="ct d"><h3 class="cth">${ic('bars',16)}Sold vs restocked, last 30 days</h3><div class="ch"><canvas id="c4"></canvas></div></div>
+      <div class="ct e"><h3 class="cth">${ic('grid',16)}Sales calendar, last 5 weeks</h3><div id="cal" class="ctb"></div></div>
+    </div>
+  </div>`,
+  `<a class="btn" href="#/products/new">${ic('plus',18)}Add product</a>`);
+  KEYS.forEach((_,i)=>{const e=$('#lg'+i);e.onclick=e.onmouseenter=()=>{hov=i;ctr();pick(i)};e.onmouseleave=()=>{hov=null;ctr()}});
+  if(window.Chart){
+    Chart.defaults.font.family="'Bricolage Grotesque',system-ui,sans-serif"; Chart.defaults.color=css('--mut');
+    cc=new Chart($('#c1'),{type:'bar',plugins:[lastLine,hl],data:{labels:[],datasets:[{data:[],borderSkipped:false,borderWidth:1.5,borderRadius:3,barPercentage:.72,categoryPercentage:.9,backgroundColor:c=>col(c.dataIndex),borderColor:c=>col(c.dataIndex)}]},
+      options:{responsive:true,maintainAspectRatio:false,animation:{duration:900,easing:'easeOutQuart'},interaction:{mode:'index',intersect:false},
+        onHover:(e,a)=>{ if(dayPin!=null)return; e.native.target.style.cursor=a.length?'pointer':'default'; const i=a.length?a[0].index:null; if(i==null){if(dayIdx!=null)hideDay()}else if(i!==dayIdx)showDay(i)},
+        onClick:(e,a)=>{ if(!a.length){dayPin=null;hideDay();return} const i=a[0].index; dayPin=dayPin===i?null:i; dayPin==null?hideDay():showDay(i)},
+        plugins:{legend:{display:false},tooltip:{displayColors:false,callbacks:{title:i=>CD[i[0].dataIndex].d,label:x=>{const c=CD[x.dataIndex],z=c.c-c.o;return[`Open: ${int(c.o)}`,`Close: ${int(c.c)}`,`Change: ${z>0?'+':''}${int(z)}`]}}}},
+        scales:{y:{beginAtZero:false,grace:'10%',grid:{color:css('--line')}},x:{grid:{display:false},ticks:{maxTicksLimit:8}}}}});
+    pc=new Chart($('#c2'),{type:'doughnut',data:{labels:KEYS.map(k=>k[1]),datasets:[{data:[0,0,0],backgroundColor:KEYS.map(k=>k[2]),borderWidth:0,spacing:3,borderRadius:6,hoverOffset:12}]},
+      options:{responsive:true,maintainAspectRatio:false,cutout:'70%',animation:{duration:1100,easing:'easeOutQuart'},plugins:{legend:{display:false},tooltip:{enabled:false}},
+        onHover:(e,a)=>{e.native.target.style.cursor=a.length?'pointer':'default';const i=a.length?a[0].index:null;if(i!==hov){hov=i;ctr();if(i!=null)pick(i)}},
+        onClick:(e,a)=>{if(a.length)pick(a[0].index)}}});
+    mkCharts();charts.push(cc,pc,fc);
+  }
+  paint(d);
+  timer=setInterval(async()=>{if(document.hidden)return;try{const[d,i]=await load();ins=i;paint(d)}catch(e){}},5000);
 }
 
+/* ---------- products / settings ---------- */
 async function products(){
-  const list=await api('/products');
-  shell('Products','<div class="card"><input id="q" placeholder="Search by name or SKU" style="max-width:320px;margin-bottom:12px"><div id="tbl"></div></div>','<a class="btn" href="#/products/new">Add product</a>');
+  const list=await api('/products'); let first=true;
+  shell('Products','<div class="card rise"><input id="q" placeholder="Search by name or SKU" style="max-width:320px;margin-bottom:12px"><div id="tbl"></div></div>',`<a class="btn" href="#/products/new">${ic('plus',18)}Add product</a>`);
   const draw=()=>{ const q=$('#q').value.trim().toLowerCase(); const rows=list.filter(p=>!q||p.name.toLowerCase().includes(q)||p.sku.toLowerCase().includes(q));
-    $('#tbl').innerHTML=rows.length?`<table><thead><tr><th>Name</th><th>SKU</th><th class="r">Quantity</th><th>Status</th><th class="r">Selling price</th><th></th></tr></thead><tbody>${rows.map(p=>
-      `<tr><td>${esc(p.name)}</td><td>${esc(p.sku)}</td><td class="r">${p.quantity}</td><td>${status(p)}</td><td class="r">${fmt(p.selling_price)}</td>
+    $('#tbl').innerHTML=rows.length?`<table><thead><tr><th>Name</th><th>SKU</th><th class="r">Quantity</th><th>Status</th><th class="r">Selling price</th><th></th></tr></thead><tbody>${rows.map((p,i)=>
+      `<tr${first?` class="rise" style="--i:${Math.min(i,12)*.4}"`:''}><td>${esc(p.name)}</td><td>${esc(p.sku)}</td><td class="r">${p.quantity}</td><td>${status(p)}</td><td class="r">${fmt(p.selling_price)}</td>
       <td><div class="act"><button class="light" data-a="adj" data-id="${p.id}">Adjust stock</button><a class="btn light" href="#/products/${p.id}">Edit</a><button class="danger" data-a="del" data-id="${p.id}">Delete</button></div></td></tr>`).join('')}</tbody></table>`
-      :`<p class="muted">${list.length?'No products match your search.':'No products yet. Add your first one.'}</p>`; };
+      :`<p class="muted">${list.length?'No products match your search.':'No products yet. Add your first one.'}</p>`; first=false; };
   $('#q').oninput=draw; draw();
   $('#tbl').onclick=async e=>{ const b=e.target.closest('button'); if(!b) return; const p=list.find(x=>x.id==b.dataset.id);
     if(b.dataset.a==='adj') return adjust(p);
     if(confirm(`Delete "${p.name}"? This cannot be undone.`)){ try{ await api('/products/'+p.id,'DELETE'); toast('Product deleted'); route(); }catch(x){toast(x.message)} } };
 }
-
 function adjust(p){
   const d=$('#dlg');
   d.innerHTML=`<form id="af"><h3>Adjust stock: ${esc(p.name)}</h3><p class="muted" style="margin-top:0">Currently ${p.quantity} on hand</p>
@@ -126,10 +409,9 @@ function adjust(p){
   d.showModal(); $('#x').onclick=()=>d.close();
   bindForm('#af',async v=>{ await api(`/products/${p.id}/adjust`,'POST',v); d.close(); toast('Stock updated'); route(); });
 }
-
 async function form(id){
   const p=id?await api('/products/'+id):{};
-  shell(id?'Edit product':'New product',`<form id="pf" class="card" style="max-width:720px">
+  shell(id?'Edit product':'New product',`<form id="pf" class="card rise" style="max-width:720px">
   <div class="f2"><label>Name<input name="name" required maxlength="120" value="${esc(p.name)}"></label><label>SKU<input name="sku" required maxlength="60" value="${esc(p.sku)}"></label></div>
   <label>Description<textarea name="description" rows="2" maxlength="500">${esc(p.description)}</textarea></label>
   <div class="f2"><label>Quantity on hand<input name="quantity" type="number" min="0" step="1" value="${p.quantity??0}"></label>
@@ -140,16 +422,15 @@ async function form(id){
   ${p.last_updated_by?`<p class="muted" style="font-size:13px">Last updated by ${esc(p.last_updated_by)} on ${esc(p.updated_at)} UTC</p>`:''}</form>`);
   bindForm('#pf',async v=>{ await api(id?'/products/'+id:'/products',id?'PUT':'POST',v); toast('Product saved'); location.hash='#/products'; });
 }
-
 async function settings(){
   const s=await api('/settings');
-  shell('Settings',`<form id="sf" class="card" style="max-width:420px"><label>Default low-stock threshold<input name="default_threshold" type="number" min="0" step="1" required value="${s.default_threshold}"></label>
+  shell('Settings',`<form id="sf" class="card rise" style="max-width:420px"><label>Default low-stock threshold<input name="default_threshold" type="number" min="0" step="1" required value="${s.default_threshold}"></label>
   <p class="muted" style="font-size:13px;margin-top:-6px">Applies to products that have no threshold of their own.</p><div class="err"></div><button>Save settings</button></form>`);
   bindForm('#sf',async v=>{ await api('/settings','PUT',v); toast('Settings saved'); });
 }
 
 async function route(){
-  charts.forEach(c=>c.destroy()); charts=[];
+  clearInterval(timer); charts.forEach(c=>c.destroy()); charts=[]; cc=pc=null;
   const h=location.hash.slice(1)||'/dashboard', pub=h==='/login'||h==='/signup';
   if(!user&&!pub) return void(location.hash='#/login');
   if(user&&pub) return void(location.hash='#/dashboard');
