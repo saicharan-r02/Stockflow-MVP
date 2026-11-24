@@ -1,10 +1,83 @@
-process.env.DB_PATH = ':memory:';
-const { test, before, after } = require('node:test'), assert = require('node:assert/strict'), app = require('./server');
+process.env.NODE_ENV = 'test';
+
+if (typeof process.loadEnvFile === 'function') {
+  try { process.loadEnvFile(); } catch (e) {}
+}
+
+// Safeguard 4: If TEST_DATABASE_URL is missing, tests must stop with a clear error
+if (!process.env.TEST_DATABASE_URL) {
+  throw new Error('TEST_DATABASE_URL is missing. Tests must stop with a clear error instead of falling back to DATABASE_URL.');
+}
+
+// Safeguard 6: Verify both URLs are different without printing their credentials
+if (process.env.DATABASE_URL) {
+  if (process.env.TEST_DATABASE_URL === process.env.DATABASE_URL) {
+    throw new Error('Safeguard violation: TEST_DATABASE_URL and DATABASE_URL are identical. Tests must use an isolated test database.');
+  }
+}
+
+const { test, before, after } = require('node:test');
+const assert = require('node:assert/strict');
+const db = require('./db');
+const app = require('./server');
+
 let srv, base;
-before(() => new Promise(r => { srv = app.listen(0, () => { base = 'http://localhost:' + srv.address().port; r(); }); }));
-after(() => { srv.closeAllConnections(); srv.close(); });
-const call = async (cookie, method, p, body) => { const r = await fetch(base + '/api' + p, { method, headers: { 'Content-Type': 'application/json', cookie: cookie || '' }, body: body && JSON.stringify(body) }); return { s: r.status, c: (r.headers.get('set-cookie') || '').split(';')[0], d: await r.json() }; };
+
+before(async () => {
+  await db.initSchema();
+  // Safe cleanup of test tenant data created during previous test runs on the test branch
+  const client = await db.getClient();
+  try {
+    await client.query('BEGIN');
+    await client.query("DELETE FROM orgs WHERE name LIKE 'Org %' OR name = 'Same SKU, other org'");
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+
+  await new Promise(r => {
+    srv = app.listen(0, () => {
+      base = 'http://localhost:' + srv.address().port;
+      r();
+    });
+  });
+});
+
+after(async () => {
+  if (srv) {
+    srv.closeAllConnections();
+    srv.close();
+  }
+  try {
+    const client = await db.getClient();
+    await client.query('BEGIN');
+    await client.query("DELETE FROM orgs WHERE name LIKE 'Org %' OR name = 'Same SKU, other org'");
+    await client.query('COMMIT');
+    client.release();
+  } catch (e) {}
+  await db.close();
+});
+
+const call = async (cookie, method, p, body) => {
+  const r = await fetch(base + '/api' + p, {
+    method,
+    headers: { 'Content-Type': 'application/json', cookie: cookie || '' },
+    body: body && JSON.stringify(body)
+  });
+  return { s: r.status, c: (r.headers.get('set-cookie') || '').split(';')[0], d: await r.json() };
+};
+
 const signup = e => call('', 'POST', '/auth/signup', { email: e, password: 'password1', orgName: 'Org ' + e });
+
+test('safeguards: isolated test database and rejection of missing TEST_DATABASE_URL', async () => {
+  assert.ok(process.env.TEST_DATABASE_URL, 'TEST_DATABASE_URL is set');
+  if (process.env.DATABASE_URL) {
+    assert.notEqual(process.env.TEST_DATABASE_URL, process.env.DATABASE_URL, 'TEST_DATABASE_URL must differ from DATABASE_URL');
+  }
+});
 
 test('auth, CRUD, low stock, stock adjust, tenant isolation, dashboard', async () => {
   assert.equal((await call('', 'POST', '/auth/signup')).s, 400, 'missing JSON body returns a validation error');

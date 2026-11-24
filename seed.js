@@ -3,20 +3,10 @@
 const bcrypt = require('bcryptjs');
 const db = require('./db');
 
-const insertProduct = db.prepare(`
-  INSERT INTO products(
-    org_id, name, sku, description, quantity, cost_price,
-    selling_price, low_stock_threshold, last_updated_by
-  ) VALUES(?,?,?,?,?,?,?,?,?)
-`);
-const insertEvent = db.prepare(`
-  INSERT INTO stock_events(org_id, product_id, delta, note, created_at)
-  VALUES(?,?,?,?,datetime('now', ?))
-`);
-
-function seedOriginalDemo() {
+async function seedOriginalDemo() {
   const email = 'demo@stockflow.app';
-  if (db.prepare('SELECT 1 FROM users WHERE email=?').get(email)) {
+  const existing = await db.query('SELECT 1 FROM users WHERE email = $1', [email]);
+  if (existing.rows.length) {
     console.log(`${email} already exists; skipped`);
     return;
   }
@@ -37,15 +27,25 @@ function seedOriginalDemo() {
   ];
   const rnd = (min, max) => min + Math.floor(Math.random() * (max - min + 1));
 
-  db.transaction(() => {
-    const orgId = db.prepare('INSERT INTO orgs(name) VALUES(?)').run('Demo Store').lastInsertRowid;
-    db.prepare('INSERT INTO users(org_id,email,password_hash) VALUES(?,?,?)')
-      .run(orgId, email, bcrypt.hashSync('demo12345', 10));
+  const client = await db.getClient();
+  try {
+    await client.query('BEGIN');
+    const orgRes = await client.query('INSERT INTO orgs(name) VALUES($1) RETURNING id', ['Demo Store']);
+    const orgId = orgRes.rows[0].id;
+    await client.query(
+      'INSERT INTO users(org_id, email, password_hash) VALUES($1, $2, $3)',
+      [orgId, email, bcrypt.hashSync('demo12345', 10)]
+    );
 
     for (const [name, sku, quantity, cost, price, threshold] of products) {
-      const productId = insertProduct.run(
-        orgId, name, sku, null, quantity, cost, price, threshold, email
-      ).lastInsertRowid;
+      const pRes = await client.query(
+        `INSERT INTO products(
+          org_id, name, sku, description, quantity, cost_price,
+          selling_price, low_stock_threshold, last_updated_by
+        ) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
+        [orgId, name, sku, null, quantity, cost, price, threshold, email]
+      );
+      const productId = pRes.rows[0].id;
       const saleOne = rnd(5, 20);
       const saleTwo = rnd(5, 20);
       const restock = rnd(0, Math.min(40, quantity + saleTwo));
@@ -56,16 +56,29 @@ function seedOriginalDemo() {
         [-saleTwo, rnd(1, 6), 'Customer sales']
       ];
       for (const [delta, daysAgo, note] of events) {
-        if (delta) insertEvent.run(orgId, productId, delta, note, `-${daysAgo} days`);
+        if (delta) {
+          const createdAt = new Date(Date.now() - daysAgo * 864e5).toISOString();
+          await client.query(
+            'INSERT INTO stock_events(org_id, product_id, delta, note, created_at) VALUES($1, $2, $3, $4, $5)',
+            [orgId, productId, delta, note, createdAt]
+          );
+        }
       }
     }
-  })();
-  console.log(`Seeded ${email} / demo12345 (Demo Store)`);
+    await client.query('COMMIT');
+    console.log(`Seeded ${email} / demo12345 (Demo Store)`);
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
 }
 
-function seedShowcaseDemo() {
+async function seedShowcaseDemo() {
   const email = 'novatech@stockflow.app';
-  if (db.prepare('SELECT 1 FROM users WHERE email=?').get(email)) {
+  const existing = await db.query('SELECT 1 FROM users WHERE email = $1', [email]);
+  if (existing.rows.length) {
     console.log(`${email} already exists; skipped`);
     return;
   }
@@ -107,29 +120,65 @@ function seedShowcaseDemo() {
       '7-in-1 USB-C docking station', [[-8, 22, 'Customer sales']]]
   ];
 
-  db.transaction(() => {
-    const orgId = db.prepare('INSERT INTO orgs(name) VALUES(?)').run('NovaTech Electronics').lastInsertRowid;
-    db.prepare('INSERT INTO users(org_id,email,password_hash) VALUES(?,?,?)')
-      .run(orgId, email, bcrypt.hashSync('novatech12345', 10));
+  const client = await db.getClient();
+  try {
+    await client.query('BEGIN');
+    const orgRes = await client.query('INSERT INTO orgs(name) VALUES($1) RETURNING id', ['NovaTech Electronics']);
+    const orgId = orgRes.rows[0].id;
+    await client.query(
+      'INSERT INTO users(org_id, email, password_hash) VALUES($1, $2, $3)',
+      [orgId, email, bcrypt.hashSync('novatech12345', 10)]
+    );
 
     for (const [name, sku, finalQty, openingQty, cost, price, threshold, description, history] of products) {
       const historyTotal = history.reduce((sum, [delta]) => sum + delta, openingQty);
       if (historyTotal !== finalQty) {
         throw new Error(`Seed history for ${sku} totals ${historyTotal}, expected ${finalQty}`);
       }
-      const productId = insertProduct.run(
-        orgId, name, sku, description, finalQty, cost, price, threshold, email
-      ).lastInsertRowid;
+      const pRes = await client.query(
+        `INSERT INTO products(
+          org_id, name, sku, description, quantity, cost_price,
+          selling_price, low_stock_threshold, last_updated_by
+        ) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
+        [orgId, name, sku, description, finalQty, cost, price, threshold, email]
+      );
+      const productId = pRes.rows[0].id;
 
-      insertEvent.run(orgId, productId, openingQty, 'Opening inventory', '-29 days');
+      const openingDate = new Date(Date.now() - 29 * 864e5).toISOString();
+      await client.query(
+        'INSERT INTO stock_events(org_id, product_id, delta, note, created_at) VALUES($1, $2, $3, $4, $5)',
+        [orgId, productId, openingQty, 'Opening inventory', openingDate]
+      );
       for (const [delta, daysAgo, note] of history) {
-        insertEvent.run(orgId, productId, delta, note, `-${daysAgo} days`);
+        const eventDate = new Date(Date.now() - daysAgo * 864e5).toISOString();
+        await client.query(
+          'INSERT INTO stock_events(org_id, product_id, delta, note, created_at) VALUES($1, $2, $3, $4, $5)',
+          [orgId, productId, delta, note, eventDate]
+        );
       }
     }
-  })();
-  console.log(`Seeded ${email} / novatech12345 (NovaTech Electronics)`);
+    await client.query('COMMIT');
+    console.log(`Seeded ${email} / novatech12345 (NovaTech Electronics)`);
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
 }
 
-seedOriginalDemo();
-seedShowcaseDemo();
-console.log('Seed complete. Existing accounts were left unchanged.');
+async function main() {
+  await seedOriginalDemo();
+  await seedShowcaseDemo();
+  console.log('Seed complete. Existing accounts were left unchanged.');
+  await db.close();
+}
+
+if (require.main === module) {
+  main().catch(err => {
+    console.error('Seed failed:', err);
+    process.exit(1);
+  });
+}
+
+module.exports = { seedOriginalDemo, seedShowcaseDemo };
