@@ -1,14 +1,42 @@
-const express = require('express'), bcrypt = require('bcryptjs'), jwt = require('jsonwebtoken'), path = require('path'), db = require('./db');
+const express = require('express'),
+  helmet = require('helmet'),
+  bcrypt = require('bcryptjs'),
+  jwt = require('jsonwebtoken'),
+  path = require('path'),
+  db = require('./db');
+
 const prod = process.env.NODE_ENV === 'production';
 const SECRET = process.env.JWT_SECRET || 'dev-only-secret';
 if (prod && !process.env.JWT_SECRET) throw new Error('Set JWT_SECRET in production');
 
 const app = express();
-app.disable('x-powered-by'); app.set('trust proxy', 1);
+app.disable('x-powered-by');
+app.set('trust proxy', 1);
+
+// Security headers with Helmet
+// Configure Content-Security-Policy to support existing frontend inline styles/scripts and CDN resources
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'", 'https://cdnjs.cloudflare.com'],
+        styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+        fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+        imgSrc: ["'self'", 'data:'],
+        connectSrc: ["'self'"]
+      }
+    }
+  })
+);
+
 app.use(express.json({ limit: '50kb' }));
 // Express 5 may leave req.body undefined when no JSON body was sent.
 // Normalise it so validation returns a client error rather than a TypeError/500.
-app.use((req, res, next) => { req.body ??= {}; next(); });
+app.use((req, res, next) => {
+  req.body ??= {};
+  next();
+});
 app.use(express.static(path.join(__dirname, 'public')));
 
 const bad = (m, status = 400) => Object.assign(new Error(m), { status });
@@ -16,7 +44,8 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const hits = new Map();
 const MAX_RATE_LIMIT_IPS = 5000;
 const limit = (req, res, next) => {
-  const now = Date.now(), ip = req.ip;
+  const now = Date.now(),
+    ip = req.ip;
   // Bound the map even if clients rotate source IPs; prune expired buckets
   // before admitting a new key once the cap is reached.
   if (!hits.has(ip) && hits.size >= MAX_RATE_LIMIT_IPS) {
@@ -33,8 +62,24 @@ const limit = (req, res, next) => {
   next(attempts.length > 20 ? bad('Too many attempts. Try again in a minute.', 429) : undefined);
 };
 
+// FIX 1 helper: Validate product ID strictly as a positive 32-bit integer
+const parseId = id => {
+  const s = String(id || '').trim();
+  if (!/^\d+$/.test(s)) return null;
+  const n = Number(s);
+  if (!Number.isSafeInteger(n) || n <= 0 || n > 2147483647) return null;
+  return n;
+};
+
 // ---------- auth ----------
-const setCookie = (res, u) => res.cookie('t', jwt.sign({ uid: u.id }, SECRET, { expiresIn: '7d' }), { httpOnly: true, sameSite: 'lax', secure: prod, maxAge: 7 * 864e5 });
+const setCookie = (res, u) =>
+  res.cookie('t', jwt.sign({ uid: u.id }, SECRET, { expiresIn: '7d' }), {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: prod,
+    maxAge: 7 * 864e5
+  });
+
 const auth = async (req, res, next) => {
   const m = (req.headers.cookie || '').match(/(?:^|; )t=([^;]+)/);
   let u;
@@ -62,6 +107,9 @@ app.post('/api/auth/signup', limit, async (req, res) => {
   const existing = await db.query('SELECT 1 FROM users WHERE email = $1', [e]);
   if (existing.rows.length) throw bad('That email is already registered', 409);
 
+  // FIX 5: Asynchronous bcrypt hash
+  const passwordHash = await bcrypt.hash(pw, 10);
+
   const client = await db.getClient();
   let u;
   try {
@@ -70,7 +118,7 @@ app.post('/api/auth/signup', limit, async (req, res) => {
     const oid = orgRes.rows[0].id;
     const userRes = await client.query(
       'INSERT INTO users(org_id, email, password_hash) VALUES($1, $2, $3) RETURNING id',
-      [oid, e, bcrypt.hashSync(pw, 10)]
+      [oid, e, passwordHash]
     );
     u = { id: userRes.rows[0].id };
     await client.query('COMMIT');
@@ -86,9 +134,14 @@ app.post('/api/auth/signup', limit, async (req, res) => {
 });
 
 app.post('/api/auth/login', limit, async (req, res) => {
-  const { rows } = await db.query('SELECT * FROM users WHERE email = $1', [String(req.body.email || '').trim().toLowerCase()]);
+  const { rows } = await db.query('SELECT * FROM users WHERE email = $1', [
+    String(req.body.email || '').trim().toLowerCase()
+  ]);
   const u = rows[0];
-  if (!u || !bcrypt.compareSync(String(req.body.password || ''), u.password_hash)) throw bad('Invalid email or password', 401);
+  // FIX 5: Asynchronous bcrypt compare
+  if (!u || !(await bcrypt.compare(String(req.body.password || ''), u.password_hash))) {
+    throw bad('Invalid email or password', 401);
+  }
   setCookie(res, u);
   res.json({ ok: true });
 });
@@ -101,7 +154,8 @@ app.post('/api/auth/logout', (req, res) => {
 app.get('/api/me', auth, (req, res) => res.json({ email: req.u.email, org: req.u.org }));
 
 // ---------- helpers ----------
-const COLS = 'id,name,sku,description,quantity,cost_price,selling_price,low_stock_threshold,last_updated_by,created_at,updated_at';
+const COLS =
+  'id,name,sku,description,quantity,cost_price,selling_price,low_stock_threshold,last_updated_by,created_at,updated_at';
 
 const defThr = async (oid, client) => {
   const runner = client || db;
@@ -135,13 +189,17 @@ const logEv = async (oid, pid, delta, note, client) => {
 const num = (v, label, int) => {
   if (v === '' || v == null) return null;
   const n = Number(v);
-  if (!Number.isFinite(n) || n < 0 || (int && !Number.isInteger(n)) || n > 1e9) throw bad(`${label} must be ${int ? 'a whole number' : 'a number'} of 0 or more`);
+  if (!Number.isFinite(n) || n < 0 || (int && !Number.isInteger(n)) || n > 1e9) {
+    throw bad(`${label} must be ${int ? 'a whole number' : 'a number'} of 0 or more`);
+  }
   return n;
 };
 
 const clean = b => {
-  const name = String(b.name || '').trim().slice(0, 120), sku = String(b.sku || '').trim().toUpperCase().slice(0, 60);
-  if (!name) throw bad('Name is required'); if (!sku) throw bad('SKU is required');
+  const name = String(b.name || '').trim().slice(0, 120),
+    sku = String(b.sku || '').trim().toUpperCase().slice(0, 60);
+  if (!name) throw bad('Name is required');
+  if (!sku) throw bad('SKU is required');
   return {
     name,
     sku,
@@ -163,14 +221,18 @@ app.get('/api/products', auth, async (req, res) => {
   res.json(rows.map(p => withLow(p, d)));
 });
 
+// FIX 1: Reject malformed product ID
 app.get('/api/products/:id', auth, async (req, res) => {
-  const p = await get(req.u.org_id, req.params.id);
+  const id = parseId(req.params.id);
+  if (!id) throw bad('Product not found', 404);
+  const p = await get(req.u.org_id, id);
   if (!p) throw bad('Product not found', 404);
   res.json(p);
 });
 
 app.post('/api/products', auth, async (req, res) => {
-  const p = clean(req.body), oid = req.u.org_id;
+  const p = clean(req.body),
+    oid = req.u.org_id;
   const client = await db.getClient();
   let id;
   try {
@@ -193,13 +255,16 @@ app.post('/api/products', auth, async (req, res) => {
   res.status(201).json(created);
 });
 
+// FIX 1: Reject malformed product ID
 app.put('/api/products/:id', auth, async (req, res) => {
+  const id = parseId(req.params.id);
+  if (!id) throw bad('Product not found', 404);
   const oid = req.u.org_id;
   const client = await db.getClient();
   let updated;
   try {
     await client.query('BEGIN');
-    const old = await get(oid, req.params.id, client);
+    const old = await get(oid, id, client);
     if (!old) throw bad('Product not found', 404);
     // PUT accepts partial fields for compatibility with API clients; omitted
     // values remain unchanged instead of being reset to defaults.
@@ -222,20 +287,48 @@ app.put('/api/products/:id', auth, async (req, res) => {
   res.json(updated);
 });
 
+// FIX 1 & FIX 2: Reject malformed ID, validate delta, enforce bounds, check resulting stock & lock row
 app.post('/api/products/:id/adjust', auth, async (req, res) => {
+  const id = parseId(req.params.id);
+  if (!id) throw bad('Product not found', 404);
+
+  if (req.body.delta === '' || req.body.delta == null) {
+    throw bad('Enter a non-zero whole number');
+  }
+  const d = Number(req.body.delta);
+  if (!Number.isSafeInteger(d) || d === 0) {
+    throw bad('Enter a non-zero whole number');
+  }
+  const MAX_ADJUSTMENT = 1000000;
+  if (Math.abs(d) > MAX_ADJUSTMENT) {
+    throw bad('Adjustment amount is too large (maximum 1,000,000 units per adjustment)');
+  }
+
   const oid = req.u.org_id;
   const client = await db.getClient();
   let updated;
   try {
     await client.query('BEGIN');
-    const p = await get(oid, req.params.id, client);
+    // Lock row using FOR UPDATE to safely serialize concurrent stock adjustments
+    const { rows } = await client.query(
+      `SELECT ${COLS} FROM products WHERE id = $1 AND org_id = $2 FOR UPDATE`,
+      [id, oid]
+    );
+    const p = rows[0];
     if (!p) throw bad('Product not found', 404);
-    const d = Number(req.body.delta);
-    if (!Number.isInteger(d) || d === 0) throw bad('Enter a non-zero whole number');
-    if (p.quantity + d < 0) throw bad(`Only ${p.quantity} in stock. Stock cannot go below zero.`);
+
+    const newQuantity = p.quantity + d;
+    if (newQuantity < 0) {
+      throw bad(`Only ${p.quantity} in stock. Stock cannot go below zero.`);
+    }
+    const MAX_STOCK = 1000000000;
+    if (newQuantity > MAX_STOCK || newQuantity > 2147483647) {
+      throw bad('Resulting stock quantity exceeds maximum allowed limit');
+    }
+
     await client.query(
-      'UPDATE products SET quantity = quantity + $1, last_updated_by = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3 AND org_id = $4',
-      [d, req.u.email, p.id, oid]
+      'UPDATE products SET quantity = $1, last_updated_by = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3 AND org_id = $4',
+      [newQuantity, req.u.email, p.id, oid]
     );
     await logEv(oid, p.id, d, String(req.body.note || '').slice(0, 200) || 'Adjustment', client);
     updated = await get(oid, p.id, client);
@@ -249,12 +342,15 @@ app.post('/api/products/:id/adjust', auth, async (req, res) => {
   res.json(updated);
 });
 
+// FIX 1: Reject malformed product ID
 app.delete('/api/products/:id', auth, async (req, res) => {
+  const id = parseId(req.params.id);
+  if (!id) throw bad('Product not found', 404);
   const oid = req.u.org_id;
   const client = await db.getClient();
   try {
     await client.query('BEGIN');
-    const p = await get(oid, req.params.id, client);
+    const p = await get(oid, id, client);
     if (!p) throw bad('Product not found', 404);
     await logEv(oid, p.id, -p.quantity, 'Deleted', client);
     await client.query('DELETE FROM products WHERE id = $1 AND org_id = $2', [p.id, oid]);
@@ -341,7 +437,10 @@ app.get('/api/dashboard', auth, async (req, res) => {
     lowCount: low.length,
     low: lowWithCover,
     health: { out, low: low.length - out, ok: ps.length - low.length },
-    top: [...ps].sort((a, b) => b.quantity - a.quantity).slice(0, 8).map(p => ({ name: p.name, quantity: p.quantity, is_low: p.is_low })),
+    top: [...ps]
+      .sort((a, b) => b.quantity - a.quantity)
+      .slice(0, 8)
+      .map(p => ({ name: p.name, quantity: p.quantity, is_low: p.is_low })),
     trend
   });
 });
@@ -351,12 +450,21 @@ app.use((e, req, res, next) => {
   if (e.type === 'entity.parse.failed' || (e instanceof SyntaxError && e.status === 400 && 'body' in e)) {
     e = bad('Request body must contain valid JSON', 400);
   }
+  // FIX 3: Handle PostgreSQL numeric overflow (22003)
+  if (e.code === '22003') {
+    e = bad('Numeric value is out of range for inventory fields', 400);
+  }
   if (e.code === '23505' || e.code === 'SQLITE_CONSTRAINT_UNIQUE') {
     const detail = String(e.detail || e.message || '');
     const constraint = String(e.constraint || '');
     if (constraint.includes('users_email') || detail.includes('email') || detail.includes('users.email')) {
       e = bad('That email is already registered', 409);
-    } else if (constraint.includes('products_org_id_sku') || constraint.includes('sku') || detail.includes('sku') || detail.includes('products.org_id')) {
+    } else if (
+      constraint.includes('products_org_id_sku') ||
+      constraint.includes('sku') ||
+      detail.includes('sku') ||
+      detail.includes('products.org_id')
+    ) {
       e = bad('A product with that SKU already exists', 409);
     } else {
       e = bad('A record with those unique values already exists', 409);
