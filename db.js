@@ -1,30 +1,4 @@
-const dns = require('dns');
-const { Resolver } = dns.promises;
 const { Pool } = require('pg');
-
-// Resilient DNS resolution fallback for environments where local DNS refuses or fails on cloud DB hosts
-const publicResolver = new Resolver();
-publicResolver.setServers(['8.8.8.8', '1.1.1.1']);
-const origLookup = dns.lookup;
-dns.lookup = function (hostname, options, callback) {
-  if (typeof options === 'function') {
-    callback = options;
-    options = {};
-  }
-  origLookup(hostname, options, (err, address, family) => {
-    if (!err && address) return callback(null, address, family);
-    publicResolver.resolve4(hostname)
-      .then(ips => {
-        if (!ips || ips.length === 0) return callback(err || new Error('No IP found'));
-        if (options && options.all) {
-          callback(null, ips.map(ip => ({ address: ip, family: 4 })));
-        } else {
-          callback(null, ips[0], 4);
-        }
-      })
-      .catch(() => callback(err));
-  });
-};
 
 if (typeof process.loadEnvFile === 'function') {
   try { process.loadEnvFile(); } catch (e) {}
@@ -53,7 +27,7 @@ const pool = new Pool({
   max: isTest ? 5 : 10,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 10000,
-  ssl: { rejectUnauthorized: false }
+  ssl: true
 });
 
 pool.on('error', (err) => {

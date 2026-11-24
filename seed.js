@@ -1,5 +1,30 @@
 // npm run seed
 // Creates two independent demo organisations. Safe to run more than once.
+const dns = require('dns');
+const { Resolver } = dns.promises;
+const seedResolver = new Resolver();
+seedResolver.setServers(['8.8.8.8', '1.1.1.1']);
+const origLookup = dns.lookup;
+dns.lookup = function (hostname, options, callback) {
+  if (typeof options === 'function') {
+    callback = options;
+    options = {};
+  }
+  origLookup(hostname, options, (err, address, family) => {
+    if (!err && address) return callback(null, address, family);
+    seedResolver.resolve4(hostname)
+      .then(ips => {
+        if (!ips || ips.length === 0) return callback(err || new Error('No IP found'));
+        if (options && options.all) {
+          callback(null, ips.map(ip => ({ address: ip, family: 4 })));
+        } else {
+          callback(null, ips[0], 4);
+        }
+      })
+      .catch(() => callback(err));
+  });
+};
+
 const bcrypt = require('bcryptjs');
 const db = require('./db');
 
@@ -32,9 +57,10 @@ async function seedOriginalDemo() {
     await client.query('BEGIN');
     const orgRes = await client.query('INSERT INTO orgs(name) VALUES($1) RETURNING id', ['Demo Store']);
     const orgId = orgRes.rows[0].id;
+    const passwordHash = await bcrypt.hash('demo12345', 10);
     await client.query(
       'INSERT INTO users(org_id, email, password_hash) VALUES($1, $2, $3)',
-      [orgId, email, bcrypt.hashSync('demo12345', 10)]
+      [orgId, email, passwordHash]
     );
 
     for (const [name, sku, quantity, cost, price, threshold] of products) {
@@ -125,9 +151,10 @@ async function seedShowcaseDemo() {
     await client.query('BEGIN');
     const orgRes = await client.query('INSERT INTO orgs(name) VALUES($1) RETURNING id', ['NovaTech Electronics']);
     const orgId = orgRes.rows[0].id;
+    const passwordHash = await bcrypt.hash('novatech12345', 10);
     await client.query(
       'INSERT INTO users(org_id, email, password_hash) VALUES($1, $2, $3)',
-      [orgId, email, bcrypt.hashSync('novatech12345', 10)]
+      [orgId, email, passwordHash]
     );
 
     for (const [name, sku, finalQty, openingQty, cost, price, threshold, description, history] of products) {
