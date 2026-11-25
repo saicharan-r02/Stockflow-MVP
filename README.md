@@ -9,6 +9,50 @@ Multi-tenant inventory management application featuring secure authentication, o
 
 ---
 
+## 📸 Screenshots
+
+### 1. Login
+Secure sign-in with an `httpOnly` JWT cookie. New organisations can create an account from the same screen, and a theme toggle sits in the top-right corner.
+
+![Login page](docs/screenshots/01-login.png)
+
+### 2. Dashboard Overview
+Inventory snapshot (products, units on hand, stock value at cost, low-stock items), 30-day sales analysis with the busiest day, and a 30-day sales forecast.
+
+![Dashboard overview](docs/screenshots/02-dashboard-overview.png)
+
+### 3. Stock Movement (Last 30 Days)
+Hover a bar to see exactly which items moved that day; click to pin the day's breakdown panel with opened, closed and net change per item.
+
+![Stock movement chart with daily breakdown](docs/screenshots/03-stock-movement.png)
+
+### 4. Stock Health
+Doughnut chart splitting products into In stock, Low stock and Out of stock. Selecting a status lists the products in it.
+
+![Stock health doughnut chart](docs/screenshots/04-stock-health.png)
+
+### 5. Inventory Board, Restock Trends & Sales Calendar
+Top products by quantity (amber = low stock), low-stock items with days-of-cover estimates, a stock-value treemap, a sold-vs-restocked trend, and a 5-week sales calendar heatmap.
+
+![Inventory board, sold vs restocked and sales calendar](docs/screenshots/05-inventory-board.png)
+
+### 6. Products
+Organisation-scoped product table with search by name or SKU, status badges, and quick actions: **Adjust stock**, **Edit** and **Delete**.
+
+![Products list](docs/screenshots/06-products.png)
+
+### 7. Add Product
+Create a product with SKU, description, quantity on hand, an optional per-product low-stock threshold, cost price and selling price.
+
+![Add product form](docs/screenshots/07-add-product.png)
+
+### 8. Settings
+Set the organisation-wide default low-stock threshold, applied to any product without its own threshold.
+
+![Settings page](docs/screenshots/08-settings.png)
+
+---
+
 ## ⚡ Live Application & Demo Accounts
 
 ### Live URL
